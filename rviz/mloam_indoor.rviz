@@ -6,13 +6,13 @@ Panels:
       Expanded:
         - /axes_group1
         - /mapping1
-        - /mapping1/mappingOdom1/Covariance1
         - /mapping1/mappingOdom1/Covariance1/Position1
         - /mapping1/highMappingOdom1/Shape1
+        - /mapping1/highMappingOdom1/Covariance1/Position1
         - /mapping1/surrMapCloud1/Autocompute Value Bounds1
         - /TF1/Frames1
-      Splitter Ratio: 0.543859661
-    Tree Height: 684
+      Splitter Ratio: 0.622589529
+    Tree Height: 919
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -67,13 +67,13 @@ Visualization Manager:
         - Alpha: 1
           Buffer Length: 1
           Class: rviz/Path
-          Color: 255; 0; 0
+          Color: 0; 0; 255
           Enabled: true
           Head Diameter: 0.300000012
           Head Length: 0.200000003
           Length: 0.200000003
           Line Style: Billboards
-          Line Width: 0.300000012
+          Line Width: 0.0199999996
           Name: pivot_odom0
           Offset:
             X: 0
@@ -90,13 +90,13 @@ Visualization Manager:
         - Alpha: 1
           Buffer Length: 1
           Class: rviz/Path
-          Color: 85; 85; 127
+          Color: 255; 255; 0
           Enabled: true
           Head Diameter: 0.300000012
           Head Length: 0.200000003
           Length: 0.300000012
           Line Style: Billboards
-          Line Width: 0.100000001
+          Line Width: 0.0199999996
           Name: pivot_odom1
           Offset:
             X: 0
@@ -119,7 +119,7 @@ Visualization Manager:
           Head Length: 0.200000003
           Length: 0.300000012
           Line Style: Billboards
-          Line Width: 0.300000012
+          Line Width: 0.0199999996
           Name: mloam_map_path
           Offset:
             X: 0
@@ -136,13 +136,13 @@ Visualization Manager:
         - Alpha: 1
           Buffer Length: 1
           Class: rviz/Path
-          Color: 0; 0; 255
+          Color: 255; 0; 0
           Enabled: true
           Head Diameter: 0.300000012
           Head Length: 0.200000003
           Length: 0.300000012
           Line Style: Billboards
-          Line Width: 0.200000003
+          Line Width: 0.0199999996
           Name: gt_odom_0
           Offset:
             X: 0
@@ -160,12 +160,12 @@ Visualization Manager:
           Buffer Length: 1
           Class: rviz/Path
           Color: 85; 170; 0
-          Enabled: true
+          Enabled: false
           Head Diameter: 0.300000012
           Head Length: 0.200000003
           Length: 0.300000012
           Line Style: Billboards
-          Line Width: 0.200000003
+          Line Width: 0.0199999996
           Name: aloam_map_path
           Offset:
             X: 0
@@ -178,17 +178,17 @@ Visualization Manager:
           Shaft Length: 0.100000001
           Topic: /aloam/laser_map_path
           Unreliable: false
-          Value: true
+          Value: false
         - Alpha: 1
           Buffer Length: 1
           Class: rviz/Path
           Color: 170; 85; 255
-          Enabled: true
+          Enabled: false
           Head Diameter: 0.300000012
           Head Length: 0.200000003
           Length: 0.300000012
           Line Style: Billboards
-          Line Width: 0.200000003
+          Line Width: 0.0199999996
           Name: legoloam_map_path
           Offset:
             X: 0
@@ -201,7 +201,7 @@ Visualization Manager:
           Shaft Length: 0.100000001
           Topic: /legoloam/laser_map_path
           Unreliable: false
-          Value: true
+          Value: false
       Enabled: true
       Name: axes_group
     - Class: rviz/Group
@@ -218,12 +218,12 @@ Visualization Manager:
               Scale: 1
               Value: true
             Position:
-              Alpha: 0.5
+              Alpha: 0.699999988
               Color: 0; 0; 255
-              Scale: 5
+              Scale: 3
               Value: true
             Value: true
-          Enabled: false
+          Enabled: true
           Keep: 1000
           Name: mappingOdom
           Position Tolerance: 2
@@ -239,7 +239,7 @@ Visualization Manager:
             Value: Axes
           Topic: /laser_map
           Unreliable: false
-          Value: false
+          Value: true
         - Angle Tolerance: 0.5
           Class: rviz/Odometry
           Covariance:
@@ -252,12 +252,12 @@ Visualization Manager:
               Scale: 1
               Value: true
             Position:
-              Alpha: 0.300000012
+              Alpha: 0.699999988
               Color: 204; 51; 204
               Scale: 1
               Value: true
             Value: true
-          Enabled: false
+          Enabled: true
           Keep: 1000
           Name: highMappingOdom
           Position Tolerance: 2
@@ -273,7 +273,7 @@ Visualization Manager:
             Value: Axes
           Topic: /laser_map_high_frec
           Unreliable: false
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
@@ -316,7 +316,7 @@ Visualization Manager:
           Color: 255; 0; 0
           Color Transformer: FlatColor
           Decay Time: 0
-          Enabled: false
+          Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Max Intensity: 0.722874641
@@ -333,7 +333,7 @@ Visualization Manager:
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
-          Value: false
+          Value: true
         - Alpha: 1
           Autocompute Intensity Bounds: false
           Autocompute Value Bounds:
@@ -346,7 +346,7 @@ Visualization Manager:
           Color: 170; 85; 255
           Color Transformer: FlatColor
           Decay Time: 0
-          Enabled: false
+          Enabled: true
           Invert Rainbow: false
           Max Color: 255; 255; 255
           Max Intensity: 1
@@ -363,7 +363,7 @@ Visualization Manager:
           Unreliable: false
           Use Fixed Frame: true
           Use rainbow: true
-          Value: false
+          Value: true
       Enabled: true
       Name: mapping
     - Class: rviz/Group
@@ -803,8 +803,6 @@ Visualization Manager:
           Value: true
         base_link:
           Value: true
-        ground_link:
-          Value: true
         laser_0:
           Value: true
         laser_1:
@@ -829,8 +827,7 @@ Visualization Manager:
           world:
             aft_mapped:
               base_link:
-                ground_link:
-                  {}
+                {}
             laser_0:
               laser_1:
                 velo_right:
@@ -842,7 +839,7 @@ Visualization Manager:
       Update Interval: 0
       Value: true
     - Class: rviz/Image
-      Enabled: true
+      Enabled: false
       Image Topic: /mv_center_camera/image_raw
       Max Value: 1
       Median window: 5
@@ -852,7 +849,7 @@ Visualization Manager:
       Queue Size: 2
       Transport Hint: compressed
       Unreliable: false
-      Value: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 0; 0; 0
@@ -878,16 +875,16 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/XYOrbit
-      Distance: 67.915123
+      Distance: 50.3375511
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.0599999987
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 4.66311646
-        Y: -2.66754866
-        Z: 0.402391672
+        X: 9.51785469
+        Y: 5.97491932
+        Z: 0
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.0500000007
       Invert Z Axis: false
@@ -896,17 +893,17 @@ Visualization Manager:
       Pitch: 1.56979632
       Target Frame: world_base
       Value: XYOrbit (rviz)
-      Yaw: 4.7054224
+      Yaw: 0.10904143
     Saved: ~
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1026
+  Height: 1056
   Hide Left Dock: false
-  Hide Right Dock: false
+  Hide Right Dock: true
   Image:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd000000040000000000000191000003b7fc020000000bfb000000100044006900730070006c00610079007302000007bc00000022000001a3000002f6fb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000a0049006d0061006700650000000000ffffffff0000000000000000fb0000000600430061006d0000000028000003d50000000000000000fb0000000c00430061006d006500720061020000096f000000a9000000760000001cfb0000000a0049006d00610067006502000005f4000002950000018c0000014d0000000100000145000003b7fc0200000003fb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fc00000028000003b70000000000fffffffa000000000100000004fb0000000a0049006d0061006700650200000612000003270000017d00000134fb0000000a0049006d0061006700650300000db5000003150000014400000126fb0000001200530065006c0065006300740069006f006e020000010b000000a40000014500000394fb0000000a0056006900650077007302000007b500000326000001a600000113fb0000001200530065006c0065006300740069006f006e010000025a000000b20000000000000000000000020000074d000000defc0100000003fb0000000a0049006d0061006700650300000cf0000002b9000001d40000012dfb0000000600430061006d02000018670000008f0000018400000117fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000074d000000a3fc0100000002fb0000000800540069006d006500000000000000074d000003a400fffffffb0000000800540069006d0065010000000000000450000000000000000000000598000003b700000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000004000000000000016d000003d9fc020000000bfb000000100044006900730070006c0061007900730100000028000003d9000000d800fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007302000001ed000001df00000185000000a3fb000000120056006900650077007300200054006f006f02000001df000002110000018500000122fb000000200054006f006f006c002000500072006f0070006500720074006900650073003203000002880000011d000002210000017afb0000002000730065006c0065006300740069006f006e00200062007500660066006500720200000138000000aa0000023a00000294fb00000014005700690064006500530074006500720065006f02000000e6000000d2000003ee0000030bfb0000000c004b0069006e0065006300740200000186000001060000030c00000261fb0000000a0049006d0061006700650000000000ffffffff0000001600fffffffb0000000600430061006d0000000028000003d50000000000000000fb0000000c00430061006d006500720061020000096f000000a9000000760000001cfb0000000a0049006d00610067006502000005f4000002950000018c0000014d0000000100000145000003d9fc0200000004fb0000000a005600690065007700730000000028000003d9000000af00fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730100000041000000780000000000000000fc00000028000003b70000000000fffffffa000000000100000003fb0000000a0049006d0061006700650200000612000003270000017d00000134fb0000000a0049006d0061006700650300000db5000003150000014400000126fb0000001200530065006c0065006300740069006f006e020000010b000000a40000014500000394fb0000001200530065006c0065006300740069006f006e010000025a000000b20000000000000000000000020000074d000000defc0100000003fb0000000a0049006d0061006700650300000cf0000002b9000001d40000012dfb0000000600430061006d02000018670000008f0000018400000117fb0000000a00560069006500770073030000004e00000080000002e100000197000000030000074d000000a3fc0100000002fb0000000800540069006d006500000000000000074d0000032800fffffffb0000000800540069006d00650100000000000004500000000000000000000005cc000003d900000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Selection:
     collapsed: false
   Time:
@@ -914,7 +911,7 @@ Window Geometry:
   Tool Properties:
     collapsed: false
   Views:
-    collapsed: false
-  Width: 1432
-  X: 2408
+    collapsed: true
+  Width: 1855
+  X: 65
   Y: 24
