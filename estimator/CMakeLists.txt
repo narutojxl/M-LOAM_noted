@@ -25,8 +25,6 @@ find_package(catkin REQUIRED COMPONENTS
 	mloam_pcl
 )
 
-
-
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(PCL REQUIRED)
