@@ -1,0 +1,15 @@
+estimator/cmake-build-debug
+*.pcd
+.idea
+.kdev4
+
+*.vtk
+*.pcd
+
+.history
+.vscode
+
+build
+build_docker
+
+data/

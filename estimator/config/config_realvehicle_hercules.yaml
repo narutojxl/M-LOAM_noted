@@ -1,0 +1,168 @@
+%YAML:1.0
+
+#Multiple thread support
+multiple_thread: 0
+
+# segmmentation
+segment_cloud: 1
+horizon_scan: 1800
+min_cluster_size: 30
+min_line_size: 10
+segment_valid_point_num: 5
+segment_valid_line_num: 3
+segment_theta: 1.047 # Lego-loam: 1.0
+
+# laser parameters
+idx_ref: 0
+n_scans: 16
+num_of_laser: 4
+
+cloud_topic:
+   - "/top/rslidar_points"
+   - "/front/rslidar_points"
+   - "/left/rslidar_points"
+   - "/right/rslidar_points"
+
+# window sizes
+window_size: 3
+opt_window_size: 1
+
+# Extrinsic parameter between multiple LiDARs.
+estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+                        # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
+                        # 2  Have no prior about extrinsic parameters. We will initialize and optimize around them
+
+# qx qy qz qw px py pz
+body_T_laser: !!opencv-matrix
+   rows: 4
+   cols: 7
+   dt: d
+   # data: [0, 0, 0, 1, 0, 0, 0, 
+   #        0, 0, 0, 1, 0, 0, 0,
+   #        0, 0, 0, 1, 0, 0, 0,
+   #        0, 0, 0, 1, 0, 0, 0] # wo initialization
+   # data: [0, 0, 0, 1, 0, 0, 0, 
+   #        0.00983, 0.0636, 0.0255, 0.9976, -0.3240, 0.2270, 0,
+   #        0.0885, 0.1622, 0.6996, 0.6902, 0.08471, 0.70388, 0,
+   #        0.0579, 0.1228, -0.7735, 0.61908, -0.1968, -1.2113, 0] # initialization
+   # data: [0, 0, 0, 1, 0, 0, 0,
+   #        0, 0.087150, 0, 0.99679, 0.795, 0, -1.364,
+   #        -0.061628, 0.061628, 0.70442, 0.70442, 0.503, 0.6185, -1.0912,
+   #        0.061628, 0.061628, -0.70442, 0.70442, 0.503, -0.6185, -1.0912] # CAD
+   # data: [0, 0, 0, 1, 0, 0, 0, 
+   #        -0.01897, 0.05630, 0.01960, 0.99804, 0.52786, -0.0356, -1.1015,
+   #        -0.1118, 0.1894, 0.6845, 0.6951, 0.5116, 0.6440, -0.904,
+   #        0.06044, 0.14175, -0.75835, 0.63337, 0.4406, -0.628, -1.0295] # refinement
+   data: [0, 0, 0, 1, 0, 0, 0, 
+          -0.0169, 0.0575, 0.0195, 0.998, 0.5355, 0.0393, -1.131,
+          -0.1118, 0.1894, 0.6845, 0.6951, 0.5116, 0.6440, -0.904,
+          0.0745, 0.1312, -0.7449, 0.6496, 0.4406, -0.628, -1.0295] # PS-calib
+
+############################## For Journal experiments
+# only concern the top-front calibration error
+# estimate_extrinsic: 0   
+# body_T_laser: !!opencv-matrix
+#    rows: 2
+#    cols: 7
+#    dt: d
+#    # data: [0, 0, 0, 1, 0, 0, 0, 
+#    #        0, 0, 0, 1, 0, 0, 0] # wocalib
+#    # data: [0, 0, 0, 1, 0, 0, 0, 
+#    #        0.054959, 0.15089, 0.094054, 0.98253, 0.636, 0.139, -1.031] # inject noise
+#    # data: [0, 0, 0, 1, 0, 0, 0, 
+#    #        0.00983, 0.0636, 0.0255, 0.9976,  -0.3240, 0.2270, 0] # initialization
+#    # data: [0, 0, 0, 1, 0, 0, 0, 
+#    #        0, 0.087150, 0, 0.99679, 0.795, 0, -1.364] # CAD
+#    data: [0, 0, 0, 1, 0, 0, 0, 
+#           -0.01897, 0.05630, 0.01960, 0.99804, 0.52786, -0.0356, -1.1015] # refinement   
+   # data: [0, 0, 0, 1, 0, 0, 0, 
+   #        -0.0169, 0.0575, 0.0195, 0.998, 0.5355, 0.0393, -1.131] # PS-calib
+
+################################
+
+#unsynchronization parameters
+estimate_td: 0                      # 0 have an accurate time offset among sensors
+                                    # 1 online estimate time offset among sensors
+
+td: !!opencv-matrix                 # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+   rows: 1
+   cols: 4
+   dt: d
+   data: [0, 0, 0, 0]
+
+distortion: 0
+scan_period: 0.1
+laser_sync_threshold: 0.07
+
+######################################################## odometry
+# optimization 
+max_solver_time: 0.015  # max solver itration time (s), to guarantee real time
+max_num_iterations: 4   # max solver itrations, to guarantee real time
+
+roi_range: 1
+distance_sq_threshold: 25
+nearby_scan: 2.5
+
+# movement type
+planar_movement: 1
+
+# feature corresponding paprameters
+min_match_sq_dis: 1.0
+min_plane_dis: 0.2
+
+# factor
+marginalization_factor: 1
+point_plane_factor: 1
+point_edge_factor: 1
+prior_factor: 1
+prior_factor_pos: 5
+prior_factor_rot: 1
+
+pcl_viewer: 0
+pcl_viewer_normal_ratio: 10
+
+# calibration converage parameters
+n_cumu_feature: 20
+lambda_initial: 100
+lambda_thre_calib: 70
+n_calib: 30
+
+# good feature
+odom_gf_ratio: 0.8
+
+skip_num_odom_pub: 2
+
+######################################################## mapping
+map_corner_res: 0.2
+map_surf_res: 0.4
+map_outlier_res: 0.8
+map_sur_kf_res: 1.0
+map_eig_thre: 100
+
+distance_keyframes: 1.0
+orientation_keyframes: 1.0 
+surrounding_kf_radius: 50.0
+
+# uncertainty parameter
+# translation, rotation, point (rho, phi, zeta)
+uct_ext: !!opencv-matrix
+   rows: 4
+   cols: 6
+   dt: d
+   data: [0, 0, 0, 0, 0, 0,
+          0.0025, 0.0025, 0.0025, 0.00030461, 0.00030461, 0.00030461,
+          0.0025, 0.0025, 0.0025, 0.00030461, 0.00030461, 0.00030461,
+          0.0025, 0.0025, 0.0025, 0.00030461, 0.00030461, 0.00030461]
+         #  0.0025, 0.0025, 0.0025, 0.01, 0.01, 0.01,
+         #  0.0025, 0.0025, 0.0025, 0.01, 0.01, 0.01,
+         #  0.0025, 0.0025, 0.0025, 0.01, 0.01, 0.01] 
+
+uct_measurement: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [0.0025, 0.0025, 0.0025]
+
+uct_ext_ratio: 1.0 # small: 0.1, medium: 1, large: 10
+
+trace_threshold_mapping: 200 # small: 10, large: 5, long distance: 100

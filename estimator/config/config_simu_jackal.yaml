@@ -1,0 +1,145 @@
+%YAML:1.0
+
+#Multiple thread support
+multiple_thread: 0
+
+# segmmentation
+segment_cloud: 1
+horizon_scan: 400
+min_cluster_size: 30
+min_line_size: 10
+segment_valid_point_num: 5
+segment_valid_line_num: 3
+segment_theta: 0.53 # Lego-loam: 1.047
+
+# laser parameters
+idx_ref: 0
+n_scans: 16
+num_of_laser: 2
+
+cloud_topic:
+   - "/left/velodyne_points"
+   - "/right/velodyne_points"
+
+# window sizes
+window_size: 6
+opt_window_size: 3
+
+# Extrinsic parameter between multiple LiDARs.
+estimate_extrinsic: 0  # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+                       # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
+                       # 2  Have no prior about extrinsic parameters. We will initialize and optimize around them
+
+body_T_laser: !!opencv-matrix
+   rows: 2
+   cols: 7
+   dt: d
+   # data: [0, 0, 0, 1, 0, 0, 0,
+   #        0, 0, 0, 1, 0, 0, 0] # qx qy qz qw px py pz
+   # data: [0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000,
+   #        0.3746, 0.06042, -0.01488, 0.9251, -0.02708, -0.7192, 0.0] # initialization
+   # data: [0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000,
+   #        0.33080, -0.00059, -0.00046, 0.94370, 0.00451, -0.48755, -0.21286] # ref_1
+   # data: [0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000,
+   #        0.3173, 0.0, 0.0, 0.9483, 0.009, -0.4939, -0.2226] # ref_2
+   data: [0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000,
+          0.34913, 0.00397, 0.000073, 0.93706, -0.01155, -0.47502, -0.20598] # ref_3
+   # data: [0.00000, 0.00000, 0.00000, 1.00000, 0.00000, 0.00000, 0.00000,
+   #        0.342, 0.0, 0.0, 0.940, 0, -0.477, -0.220] # gt
+
+   # <!-- laser_0 to laser_1 -->
+   # <!-- 0.342, 0.0, 0.0, 0.940, 0, -0.477, -0.220 -->
+   # <!-- base_link to laser_0 -->
+   # <!-- -0.216 0 0 0.976 0 0.266 0.734 --> 25 degrees
+   # <!-- base_link to laser_1 -->
+   # <!-- 0.131 0 0 0.991 0 -0.260 0.736 --> 15 degrees
+
+#unsynchronization parameters
+estimate_td: 0                      # 0 have an accurate time offset among sensors
+                                    # 1 online estimate time offset among sensors
+
+td: !!opencv-matrix                 # initial value of time offset. unit: s. readed image clock + td = real image clock (IMU clock)
+   rows: 1
+   cols: 2
+   dt: d
+   data: [0, 0]
+
+distortion: 0
+scan_period: 0.1
+laser_sync_threshold: 0.07
+
+######################################################## odometry
+# optimization 
+max_solver_time: 0.02  # max solver itration time (s), to guarantee real time
+max_num_iterations: 5   # max solver itrations, to guarantee real time
+
+roi_range: 0.5
+distance_sq_threshold: 25
+nearby_scan: 2.5
+
+# movement type
+planar_movement: 1
+
+# feature corresponding paprameters
+min_match_sq_dis: 1.0
+min_plane_dis: 0.2
+
+# factor
+marginalization_factor: 1
+point_plane_factor: 1
+point_edge_factor: 1
+prior_factor: 1
+prior_factor_pos: 0
+prior_factor_rot: 40
+
+pcl_viewer: 0
+pcl_viewer_normal_ratio: 10
+
+# calibration converage parameters
+n_cumu_feature: 20
+lambda_initial: 50
+lambda_thre_calib: 70
+n_calib: 25
+
+# good feature
+odom_gf_ratio: 0.8
+
+skip_num_odom_pub: 2
+
+######################################################## mapping
+map_corner_res: 0.2
+map_surf_res: 0.4 # stable parameters: 0.2
+map_outlier_res: 0.8
+map_sur_kf_res: 1.0
+map_eig_thre: 100
+
+distance_keyframes: 1.0           # m
+orientation_keyframes: 1.0        # degree
+surrounding_kf_radius: 50         # m
+
+# uncertainty parameter
+# translation, rotation, point (rho, phi, zeta)
+uct_ext: !!opencv-matrix
+   rows: 2
+   cols: 6
+   dt: d
+   data: [0, 0, 0, 0, 0, 0,
+            0.00276, 0.00039, 0.00131, 0.00257, 0.00047, 0.00011] # after calibration
+#           0.0025, 0.0025, 0.0025, 0.00030461, 0.00030461, 0.00030461] # manual set
+
+uct_measurement: !!opencv-matrix
+   rows: 1
+   cols: 3
+   dt: d
+   data: [0.0025, 0.0025, 0.0025]
+   # data: [0.01, 0.01, 0.01]
+
+uct_ext_ratio: 1.0
+
+trace_threshold_mapping: 10
+
+# 1. 10m: 1.25
+# 2. 20m: 7.8
+# 3. 30m: 11.5
+# 4. 40m: 20
+# 5. 50m: 31.25
