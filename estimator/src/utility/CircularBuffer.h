@@ -151,12 +151,12 @@ public:
     *
     * @return the first element
     */
-    const T &first() const
+    const T &first() const 
     {
         return buffer_[start_idx_];
     }
 
-    T &first()
+    T &first()  //返回最老的数据(时间戳最小）
     {
         return buffer_[start_idx_];
     }
@@ -171,7 +171,7 @@ public:
         return buffer_[idx];
     }
 
-    T &last()
+    T &last() //返回最新的数据(时间戳最大）
     {
         size_t idx = size_ == 0 ? 0 : (start_idx_ + size_ - 1) % capacity_;
         return buffer_[idx];
@@ -188,10 +188,11 @@ public:
         if (size_ < capacity_)
         {
           buffer_[size_] = element;
-          ++size_;
-        } else
+          ++size_;  //除了Reset()外，只在此处改变
+        } else //size_ == capacity_
         {
-          buffer_[start_idx_] = element;
+          buffer_[start_idx_] = element; //当缓存了滑窗大小个数据后，新的数据会从头部开始放，覆盖旧的数据。
+                                        //即新数据在[0, start_idx_-1]位置，老数据在[start_idx_, capacity_]位置
           start_idx_ = (start_idx_ + 1) % capacity_;
         }
     }

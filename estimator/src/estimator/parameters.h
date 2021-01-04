@@ -67,7 +67,7 @@ extern int SEGMENT_VALID_LINE_NUM;
 extern float SEGMENT_THETA;
 
 // LiDAR
-extern size_t IDX_REF;
+extern size_t IDX_REF; //0
 extern size_t NUM_OF_LASER;
 extern size_t N_SCANS;
 

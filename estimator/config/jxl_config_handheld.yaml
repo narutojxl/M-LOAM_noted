@@ -5,15 +5,16 @@ multiple_thread: 0
 
 # segmmentation
 segment_cloud: 1 # RHD02lab: 1, RHD03garden: 1, RHD04building: 1
-horizon_scan: 1800
+horizon_scan: 1800 #0.2水平角分辨率，360度
 min_cluster_size: 30
+# min_line_size: 
 segment_valid_point_num: 5
 segment_valid_line_num: 3
 segment_theta: 0.53 # Lego-loam: 1.0
 
 # laser parameters
 idx_ref: 0
-n_scans: 16
+n_scans: 16    #laser beams
 num_of_laser: 2
 
 cloud_topic:
@@ -26,7 +27,7 @@ opt_window_size: 2
 
 ############################## For normal use
 # Extrinsic parameter between multiple LiDARs.
-estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Have no prior about extrinsic parameters. We will initialize and optimize around them
 
@@ -99,8 +100,8 @@ td: !!opencv-matrix                 # initial value of time offset. unit: s. rea
    data: [0, 0]
 
 distortion: 0
-scan_period: 0.1
-laser_sync_threshold: 0.07
+scan_period: 0.1  #雷达10hz
+laser_sync_threshold: 0.07   #
 
 ######################################################## odometry
 # optimization 
@@ -139,6 +140,8 @@ n_calib: 25
 odom_gf_ratio: 0.8
 
 skip_num_odom_pub: 2
+
+# lm_opt_enable： 
 
 ######################################################## mapping
 map_corner_res: 0.2

@@ -150,15 +150,17 @@ class Estimator
     bool b_system_inited_{};
 
     Pose pose_laser_prev_;
+
     // pose from laser at k=0 to laser at k=K
     std::vector<Pose> pose_laser_cur_;
+
     // pose from laser at k=K-1 to laser at k=K
     std::vector<Pose> pose_rlt_;
 
-    std::vector<Eigen::Quaterniond> qbl_;
+    std::vector<Eigen::Quaterniond> qbl_; //body系(主雷达)到各雷达的外参
     std::vector<Eigen::Vector3d> tbl_;
-    std::vector<double> tdbl_;
-    std::vector<Eigen::Matrix<double, 6, 6> > covbl_;
+    std::vector<double> tdbl_; //时间戳offset
+    std::vector<Eigen::Matrix<double, 6, 6> > covbl_; //外参的cov
 
     // slide window
     // xx[cir_buf_cnt_] indicates the newest variables and measurements
@@ -166,20 +168,21 @@ class Estimator
 
     size_t cir_buf_cnt_{};
 
-    CircularBuffer<Eigen::Quaterniond> Qs_;
+    CircularBuffer<Eigen::Quaterniond> Qs_; //WINDOW_SIZE + 1
     CircularBuffer<Eigen::Vector3d> Ts_;
     CircularBuffer<std_msgs::Header> Header_;
-    std::vector<CircularBuffer<common::PointICloud> > surf_points_stack_, corner_points_stack_;
+
+    std::vector<CircularBuffer<common::PointICloud> > surf_points_stack_, corner_points_stack_; //2个，每个对象 WINDOW_SIZE + 1大小
     std::vector<CircularBuffer<int> > surf_points_stack_size_, corner_points_stack_size_;
 
     pcl::VoxelGrid<PointI> down_size_filter_corner_, down_size_filter_surf_;
 
-    std::vector<common::PointICloud> surf_points_local_map_, surf_points_local_map_filtered_;
+    std::vector<common::PointICloud> surf_points_local_map_, surf_points_local_map_filtered_; //2个
     std::vector<common::PointICloud> surf_points_pivot_map_;
     std::vector<common::PointICloud> corner_points_local_map_, corner_points_local_map_filtered_;
     std::vector<common::PointICloud> corner_points_pivot_map_;
 
-    std::vector<std::vector<Pose> > pose_local_;
+    std::vector<std::vector<Pose> > pose_local_; //2个， 每个对象 WINDOW_SIZE + 1大小
 
     double prev_time_{}, cur_time_{};
     double td_{};
@@ -194,23 +197,23 @@ class Estimator
     std::queue<std::pair<double, std::vector<cloudFeature> > > feature_buf_;
     pair<double, std::vector<cloudFeature> > prev_feature_, cur_feature_;
     std::vector<std::vector<std::vector<PointPlaneFeature> > > surf_map_features_, corner_map_features_;
-    std::vector<std::vector<PointPlaneFeature> > cumu_surf_map_features_, cumu_corner_map_features_;
+    std::vector<std::vector<PointPlaneFeature> > cumu_surf_map_features_, cumu_corner_map_features_; //2个
     size_t cumu_surf_feature_cnt_, cumu_corner_feature_cnt_;
 
     std::vector<std::vector<std::vector<size_t> > > sel_surf_feature_idx_, sel_corner_feature_idx_;
 
-    double **para_pose_{};
-    double **para_ex_pose_{};
-    double *para_td_{};
+    double **para_pose_{}; //OPT_WINDOW_SIZE + 1, 
+    double **para_ex_pose_{}; //2个
+    double *para_td_{}; //2个
 
-    Eigen::VectorXd eig_thre_;
+    Eigen::VectorXd eig_thre_; //大小：OPT_WINDOW_SIZE + 1 + 2
     std::vector<double> log_lambda_;
     std::vector<Pose> log_extrinsics_;
 
-    std::vector<double> d_factor_calib_;
-    std::vector<double> cur_eig_calib_;
-    std::vector<std::vector<std::pair<double, Pose> > > pose_calib_;
-    std::vector<bool> calib_converge_;
+    std::vector<double> d_factor_calib_; //2个
+    std::vector<double> cur_eig_calib_;  //2个
+    std::vector<std::vector<std::pair<double, Pose> > > pose_calib_; //2个
+    std::vector<bool> calib_converge_; //2个
     std::vector<size_t> num_residuals_;
 
     // for marginalization
@@ -223,7 +226,7 @@ class Estimator
       total_solver_time_, total_marginalization_time_, total_whole_odom_time_;
     int total_corner_feature_, total_surf_feature_;
 
-    std::vector<nav_msgs::Path> v_laser_path_;
+    std::vector<nav_msgs::Path> v_laser_path_; //2个
 
     pcl::PCDWriter pcd_writer_;
 

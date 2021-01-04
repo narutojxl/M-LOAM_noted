@@ -112,8 +112,10 @@ void Estimator::setParameter()
     }
     para_td_ = new double[NUM_OF_LASER];
 
-    eig_thre_ = Eigen::VectorXd::Constant(OPT_WINDOW_SIZE + 1 + NUM_OF_LASER, 1, LAMBDA_INITIAL);
-    eig_thre_.block(OPT_WINDOW_SIZE + 1, 0, 1, NUM_OF_LASER) = Eigen::VectorXd::Zero(NUM_OF_LASER);
+    eig_thre_ = Eigen::VectorXd::Constant(OPT_WINDOW_SIZE + 1 + NUM_OF_LASER, 1, LAMBDA_INITIAL); //初值：100
+    eig_thre_.block(OPT_WINDOW_SIZE + 1, 0, 1, NUM_OF_LASER) = Eigen::VectorXd::Zero(NUM_OF_LASER); 
+    //TODO: block(OPT_WINDOW_SIZE + 1, 0, NUM_OF_LASER, 1)
+
     d_factor_calib_ = std::vector<double>(NUM_OF_LASER, 0);
     cur_eig_calib_ = std::vector<double>(NUM_OF_LASER, 0);
     pose_calib_.resize(NUM_OF_LASER);

@@ -109,7 +109,7 @@ void sync_process()
             for (size_t i = 0; i < all_cloud_buf.size(); i++) all_cloud_buf[i].pop();
             printf("size of finding laser_cloud: %s\n", ss.str().c_str());
         }
-        while (!all_cloud_buf[0].empty())
+        while (!all_cloud_buf[0].empty()) //TODO：把当前队列中，缓冲两个雷达的所有数据全部删除；不是每帧scan都会处理
         {
             frame_drop_cnt++;
             for (size_t i = 0; i < all_cloud_buf.size(); i++)
@@ -128,7 +128,7 @@ void sync_process()
         for (size_t i = 0; i < NUM_OF_LASER; i++)
             if (v_laser_cloud[i].size() == 0) empty_check = true;
 
-        if (!empty_check) estimator.inputCloud(time, v_laser_cloud);
+        if (!empty_check) estimator.inputCloud(time, v_laser_cloud); //把两个雷达的数据送进estimator中
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 }
@@ -145,7 +145,7 @@ void restart_callback(const std_msgs::BoolConstPtr &restart_msg)
 
 void pose_gt_callback(const geometry_msgs::PoseStamped &pose_msg)
 {
-    Pose pose_world_base(pose_msg.pose);
+    Pose pose_world_base(pose_msg.pose); //Pose: 作者pose.h
     Pose pose_base_ref(Eigen::Quaterniond(1, 0, 0, 0), Eigen::Vector3d(0, 0, 0));
     Pose pose_world_ref(pose_world_base * pose_base_ref);
     if (laser_gt_path.poses.size() == 0)
@@ -191,7 +191,7 @@ int main(int argc, char **argv)
     printf("config_file: %s\n", FLAGS_config_file.c_str());
     readParameters(FLAGS_config_file);
     estimator.setParameter();
-    registerPub(nh);
+    registerPub(nh); //发布前端里程计，path topic
 
     MLOAM_RESULT_SAVE = FLAGS_result_save;
     OUTPUT_FOLDER = FLAGS_output_path;
@@ -208,16 +208,16 @@ int main(int argc, char **argv)
     typedef message_filters::Subscriber<LidarMsgType> LidarSubType;
 
     std::vector<LidarSubType *> sub_lidar(2);
-    NUM_OF_LASER = NUM_OF_LASER < 2 ? NUM_OF_LASER : 2;
+    NUM_OF_LASER = NUM_OF_LASER < 2 ? NUM_OF_LASER : 2; //TODO: 雷达数量超过2个时强制为2个雷达
     for (size_t i = 0; i < NUM_OF_LASER; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[i], 1);
-    for (size_t i = NUM_OF_LASER; i < 2; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[0], 1);
+    for (size_t i = NUM_OF_LASER; i < 2; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[0], 1);//TODO: 该语句好像是多余的
     message_filters::Synchronizer<LidarSyncPolicy> *lidar_synchronizer =
         new message_filters::Synchronizer<LidarSyncPolicy>(
             LidarSyncPolicy(10), *sub_lidar[0], *sub_lidar[1]);
-    lidar_synchronizer->registerCallback(boost::bind(&dataProcessCallback, _1, _2));
+    lidar_synchronizer->registerCallback(boost::bind(&dataProcessCallback, _1, _2)); //左右雷达的callback
 
     ros::Subscriber sub_restart = nh.subscribe("/mlod_restart", 5, restart_callback);
-    ros::Subscriber sub_pose_gt = nh.subscribe("/base_pose_gt", 5, pose_gt_callback);
+    ros::Subscriber sub_pose_gt = nh.subscribe("/base_pose_gt", 5, pose_gt_callback); //前端ground truth轨迹
     pub_laser_gt_path = nh.advertise<nav_msgs::Path>("/laser_gt_path", 5);
 
     std::thread sync_thread(sync_process);

@@ -83,7 +83,7 @@ public:
 
 	size_t frame_cnt_, pose_cnt_;
 
-	std::vector<Eigen::MatrixXd> Q_;
+	std::vector<Eigen::MatrixXd> Q_; //eq16. Q 
 
 	std::pair<size_t, std::vector<Pose> > pose_laser_add_;
 

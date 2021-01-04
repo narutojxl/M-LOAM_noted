@@ -13,7 +13,9 @@
 
 #include "parameters.h"
 
-int MLOAM_RESULT_SAVE;
+// int MLOAM_RESULT_SAVE; //default
+int MLOAM_RESULT_SAVE = 1; //jxl for save result
+
 std::string OUTPUT_FOLDER;
 std::string MLOAM_ODOM_PATH;
 std::string MLOAM_MAP_PATH;
@@ -120,6 +122,7 @@ T readParam(ros::NodeHandle &n, std::string name)
     return ans;
 }
 
+
 void readParameters(std::string config_file)
 {
     FILE *fh = fopen(config_file.c_str(),"r");
@@ -213,7 +216,7 @@ void readParameters(std::string config_file)
     SEGMENT_CLOUD = fsSettings["segment_cloud"];
     HORIZON_SCAN = fsSettings["horizon_scan"];
     MIN_CLUSTER_SIZE = fsSettings["min_cluster_size"];
-    MIN_LINE_SIZE = fsSettings["min_line_size"];
+    MIN_LINE_SIZE = fsSettings["min_line_size"];  //not set
     SEGMENT_VALID_POINT_NUM = fsSettings["segment_valid_point_num"];
     SEGMENT_VALID_LINE_NUM = fsSettings["segment_valid_line_num"];
     SEGMENT_THETA = fsSettings["segment_theta"];

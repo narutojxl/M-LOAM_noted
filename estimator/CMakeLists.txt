@@ -79,10 +79,10 @@ target_link_libraries(kittiHelper ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${OpenCV_
 add_executable(mloam_node_sr src/rosNodeSR.cpp)
 target_link_libraries(mloam_node_sr mloam_lib)
 
-add_executable(mloam_node_rhd src/rosNodeRHD.cpp)
+add_executable(mloam_node_rhd src/rosNodeRHD.cpp) #real hand device 
 target_link_libraries(mloam_node_rhd mloam_lib)
 
-add_executable(mloam_node_rv_hercules src/rosNodeRVHercules.cpp)
+add_executable(mloam_node_rv_hercules src/rosNodeRVHercules.cpp)#RV: real vehicle
 target_link_libraries(mloam_node_rv_hercules mloam_lib)
 
 add_executable(mloam_node_rv_oxford src/rosNodeRVOxford.cpp)

@@ -46,7 +46,7 @@ void InitialExtrinsics::setParameter()
     for (size_t i = 0; i < NUM_OF_LASER; i++) calib_ext_.push_back(Pose(QBL[i], TBL[i], TDBL[i]));
 
     cov_rot_state_ = std::vector<bool>(NUM_OF_LASER, false);
-    cov_rot_state_[IDX_REF] = true;
+    cov_rot_state_[IDX_REF] = true; //IDX_REF: 0
     full_cov_rot_state_ = false;
 
     cov_pos_state_ = std::vector<bool>(NUM_OF_LASER, false);
