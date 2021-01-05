@@ -153,6 +153,7 @@ void FeatureExtract::extractCloud(const PointICloud &laser_cloud_in,
     {
         // printf("extract feature, scans: %lu\n", i);
         if (scan_info.scan_end_ind_[i] - scan_info.scan_start_ind_[i] < 6) continue;
+
         PointICloud::Ptr surf_points_less_flat_scan(new PointICloud);
         // split the points at each scan into 6 pieces to select features averagely
         for (int j = 0; j < 6; j++)
@@ -278,7 +279,7 @@ void FeatureExtract::extractCloud(const PointICloud &laser_cloud_in,
     cloud_feature.clear();
     // cloud_feature.find("key")->first/ second
     // cloud_feature.erase("key")/ cloud_feature.erase(cloud_feature.find("key"))
-    cloud_feature.insert(pair<std::string, PointICloud>("laser_cloud", *laser_cloud));
+    cloud_feature.insert(pair<std::string, PointICloud>("laser_cloud", *laser_cloud)); //一帧整体点云
     cloud_feature.insert(pair<std::string, PointICloud>("corner_points_sharp", corner_points_sharp)); // subset: the most distinctive edge points
     cloud_feature.insert(pair<std::string, PointICloud>("corner_points_less_sharp", corner_points_less_sharp)); // more corner points
     cloud_feature.insert(pair<std::string, PointICloud>("surf_points_flat", surf_points_flat)); // subset: the most distinctive planar points

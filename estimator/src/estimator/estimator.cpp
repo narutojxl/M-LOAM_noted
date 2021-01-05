@@ -212,6 +212,7 @@ void Estimator::changeSensorType(int use_imu, int use_stereo)
     }
 }
 
+
 void Estimator::inputCloud(const double &t, const std::vector<PointCloud> &v_laser_cloud_in)
 {
     assert(v_laser_cloud_in.size() == NUM_OF_LASER);
@@ -252,15 +253,19 @@ void Estimator::inputCloud(const double &t, const std::vector<PointCloud> &v_las
         for (size_t i = 0; i < v_laser_cloud_in.size(); i++)
         {
             PointICloud laser_cloud;
-            f_extract_.calTimestamp(v_laser_cloud_in[i], laser_cloud);
+            f_extract_.calTimestamp(v_laser_cloud_in[i], laser_cloud); //laser_cloud：每个点的强度是在一帧中的时间比例
 
             PointICloud laser_cloud_segment, laser_cloud_outlier;
-            ScanInfo scan_info(N_SCANS, SEGMENT_CLOUD);
-            if (ESTIMATE_EXTRINSIC != 0) scan_info.segment_flag_ = false;
+            ScanInfo scan_info(N_SCANS, SEGMENT_CLOUD); //16*1
+            if (ESTIMATE_EXTRINSIC != 0) scan_info.segment_flag_ = false; //TODO：当需要对外参提纯或者估计外参时，不对点云进行分割
             img_segment_.segmentCloud(laser_cloud, laser_cloud_segment, laser_cloud_outlier, scan_info);
+            //laser_cloud_outlier: 没有形成聚类的points
+            //对点云进行聚类，把没有聚类的点移除； 点的强度为：线号(最底下线束为0，最上面线束最大)+时间比例
 
             feature_frame_ptr[i] = new cloudFeature;
             f_extract_.extractCloud(laser_cloud_segment, scan_info, *feature_frame_ptr[i]);
+            //依次对一帧的scan提取corner sharp, less corner sharp, surf flat, less surf flat
+
             feature_frame_ptr[i]->insert(pair<std::string, PointICloud>("laser_cloud_outlier", laser_cloud_outlier));
         }
 
@@ -274,10 +279,10 @@ void Estimator::inputCloud(const double &t, const std::vector<PointCloud> &v_las
     }
 
     double mea_pre_time = mea_pre_timer.Stop();
-    printf("meaPre time: %fms (%lu*%fms)\n", mea_pre_time * 1000, v_laser_cloud_in.size(), 
-                                             mea_pre_time * 1000 / v_laser_cloud_in.size());
+    // printf("meaPre time: %fms (%lu*%fms)\n", mea_pre_time * 1000, v_laser_cloud_in.size(), 
+    //                                          mea_pre_time * 1000 / v_laser_cloud_in.size());
     m_buf_.lock();
-    feature_buf_.push(make_pair(t, feature_frame));
+    feature_buf_.push(make_pair(t, feature_frame)); //把每帧的features压入到队列中
     m_buf_.unlock();
     if (!MULTIPLE_THREAD) processMeasurements();
 }
@@ -333,8 +338,8 @@ void Estimator::inputCloud(const double &t, const std::vector<PointITimeCloud> &
     }
 
     double mea_pre_time = mea_pre_timer.Stop();
-    printf("meaPre time: %fms (%lu*%fms)\n", mea_pre_time * 1000, v_laser_cloud_in.size(), 
-                                             mea_pre_time * 1000 / v_laser_cloud_in.size());
+    // printf("meaPre time: %fms (%lu*%fms)\n", mea_pre_time * 1000, v_laser_cloud_in.size(), 
+    //                                          mea_pre_time * 1000 / v_laser_cloud_in.size());
 
     m_buf_.lock();
     feature_buf_.push(make_pair(t, feature_frame));
@@ -349,7 +354,7 @@ void Estimator::processMeasurements()
         if (!feature_buf_.empty())
         {
             cur_feature_ = feature_buf_.front();
-            cur_time_ = cur_feature_.first + td_;
+            cur_time_ = cur_feature_.first + td_; //td_ = 0
             assert(cur_feature_.second.size() == NUM_OF_LASER);
 
             m_buf_.lock();
@@ -358,7 +363,9 @@ void Estimator::processMeasurements()
 
             m_process_.lock();
             common::timing::Timer odom_process_timer("odom_process");
-            process();
+
+            process(); //前端里程计模块
+
             double time_process = odom_process_timer.Stop() * 1000;
             std::cout << common::RED << "frame: " << frame_cnt_
                       << ", odom process time: " << time_process << "ms" << common::RESET << std::endl << std::endl;
@@ -414,7 +421,7 @@ void Estimator::process()
     if (!b_system_inited_)
     {
         b_system_inited_ = true;
-        printf("System initialization finished \n");
+        // printf("System initialization finished \n");
     } else
     {
         common::timing::Timer tracker_timer("odom_tracker");
@@ -443,7 +450,7 @@ void Estimator::process()
                 {
                     if (initial_extrinsics_.cov_rot_state_[n]) continue;
                     Pose calib_result;
-                    if (initial_extrinsics_.calibExRotation(IDX_REF, n, calib_result))
+                    if (initial_extrinsics_.calibExRotation(IDX_REF, n, calib_result)) //IDX_REF=0
                     {
                         if (initial_extrinsics_.calibExTranslation(IDX_REF, n, calib_result))
                         {
@@ -481,6 +488,8 @@ void Estimator::process()
     }
 
     //----------------- update pose and point cloud
+    //xx[cir_buf_cnt_] indicates the newest variables and measurements
+    //cir_buf_cnt_ 初值=0
     Qs_[cir_buf_cnt_] = pose_laser_cur_[IDX_REF].q_;
     Ts_[cir_buf_cnt_] = pose_laser_cur_[IDX_REF].t_;
     Header_[cir_buf_cnt_].stamp = ros::Time(cur_feature_.first);
@@ -1523,7 +1532,7 @@ void Estimator::goodFeatureMatching(const pcl::KdTreeFLANN<PointI>::Ptr &kdtree_
 void Estimator::slideWindow()
 {
     // TicToc t_solid_window;
-    printf("size of sliding window: %lu\n", cir_buf_cnt_);
+    // printf("size of sliding window: %lu\n", cir_buf_cnt_);
     Qs_.push(Qs_[cir_buf_cnt_]);
     Ts_.push(Ts_[cir_buf_cnt_]);
     Header_.push(Header_[cir_buf_cnt_]);

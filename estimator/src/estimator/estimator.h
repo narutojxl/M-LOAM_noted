@@ -73,7 +73,7 @@ class Estimator
 
     void inputCloud(const double &t, const std::vector<common::PointCloud> &v_laser_cloud_in);
     void inputCloud(const double &t, const std::vector<common::PointITimeCloud> &v_laser_cloud_in);
-    void inputCloud(const double &t, const common::PointCloud &laser_cloud_in);
+    void inputCloud(const double &t, const common::PointCloud &laser_cloud_in);  //not defined
 
     // process measurements
     void processMeasurements();
@@ -168,12 +168,16 @@ class Estimator
 
     size_t cir_buf_cnt_{};
 
+    //主雷达每帧在odom下的位姿？
     CircularBuffer<Eigen::Quaterniond> Qs_; //WINDOW_SIZE + 1
     CircularBuffer<Eigen::Vector3d> Ts_;
     CircularBuffer<std_msgs::Header> Header_;
 
-    std::vector<CircularBuffer<common::PointICloud> > surf_points_stack_, corner_points_stack_; //2个，每个对象 WINDOW_SIZE + 1大小
+    std::vector<CircularBuffer<common::PointICloud> > surf_points_stack_, corner_points_stack_; 
+    //2个，分别表示左右两个雷达; 每个对象 WINDOW_SIZE + 1大小，保存窗口中对应帧less surf和less corner
+
     std::vector<CircularBuffer<int> > surf_points_stack_size_, corner_points_stack_size_;
+    //2个，分别表示左右两个雷达；每个对象 WINDOW_SIZE + 1大小,保存窗口中对应帧less surf和less corner点的个数
 
     pcl::VoxelGrid<PointI> down_size_filter_corner_, down_size_filter_surf_;
 
@@ -194,7 +198,7 @@ class Estimator
     LidarTracker lidar_tracker_;
     InitialExtrinsics initial_extrinsics_;
 
-    std::queue<std::pair<double, std::vector<cloudFeature> > > feature_buf_;
+    std::queue<std::pair<double, std::vector<cloudFeature> > > feature_buf_; //每帧features
     pair<double, std::vector<cloudFeature> > prev_feature_, cur_feature_;
     std::vector<std::vector<std::vector<PointPlaneFeature> > > surf_map_features_, corner_map_features_;
     std::vector<std::vector<PointPlaneFeature> > cumu_surf_map_features_, cumu_corner_map_features_; //2个

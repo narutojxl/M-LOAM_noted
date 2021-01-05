@@ -128,7 +128,7 @@ void sync_process()
         for (size_t i = 0; i < NUM_OF_LASER; i++)
             if (v_laser_cloud[i].size() == 0) empty_check = true;
 
-        if (!empty_check) estimator.inputCloud(time, v_laser_cloud); //把两个雷达的数据送进estimator中
+        if (!empty_check) estimator.inputCloud(time, v_laser_cloud); //前端入口：不断地把两个雷达的数据送进estimator中
         std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
 }
@@ -210,11 +210,11 @@ int main(int argc, char **argv)
     std::vector<LidarSubType *> sub_lidar(2);
     NUM_OF_LASER = NUM_OF_LASER < 2 ? NUM_OF_LASER : 2; //TODO: 雷达数量超过2个时强制为2个雷达
     for (size_t i = 0; i < NUM_OF_LASER; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[i], 1);
-    for (size_t i = NUM_OF_LASER; i < 2; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[0], 1);//TODO: 该语句好像是多余的
+    // for (size_t i = NUM_OF_LASER; i < 2; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[0], 1);//TODO: 该语句好像是多余的
     message_filters::Synchronizer<LidarSyncPolicy> *lidar_synchronizer =
         new message_filters::Synchronizer<LidarSyncPolicy>(
             LidarSyncPolicy(10), *sub_lidar[0], *sub_lidar[1]);
-    lidar_synchronizer->registerCallback(boost::bind(&dataProcessCallback, _1, _2)); //左右雷达的callback
+    lidar_synchronizer->registerCallback(boost::bind(&dataProcessCallback, _1, _2)); //两个雷达的callback
 
     ros::Subscriber sub_restart = nh.subscribe("/mlod_restart", 5, restart_callback);
     ros::Subscriber sub_pose_gt = nh.subscribe("/base_pose_gt", 5, pose_gt_callback); //前端ground truth轨迹

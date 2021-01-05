@@ -216,14 +216,14 @@ void readParameters(std::string config_file)
     SEGMENT_CLOUD = fsSettings["segment_cloud"];
     HORIZON_SCAN = fsSettings["horizon_scan"];
     MIN_CLUSTER_SIZE = fsSettings["min_cluster_size"];
-    MIN_LINE_SIZE = fsSettings["min_line_size"];  //not set
+    MIN_LINE_SIZE = fsSettings["min_line_size"];  //not set, 该变量不使用
     SEGMENT_VALID_POINT_NUM = fsSettings["segment_valid_point_num"];
     SEGMENT_VALID_LINE_NUM = fsSettings["segment_valid_line_num"];
     SEGMENT_THETA = fsSettings["segment_theta"];
 
     int idx_ref = fsSettings["idx_ref"];
     assert(idx_ref >= 0);
-    IDX_REF = (size_t)idx_ref;
+    IDX_REF = (size_t)idx_ref; //0
 
     SCAN_PERIOD = fsSettings["scan_period"];
     DISTANCE_SQ_THRESHOLD = fsSettings["distance_sq_threshold"];

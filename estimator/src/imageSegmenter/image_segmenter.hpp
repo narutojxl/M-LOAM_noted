@@ -89,11 +89,11 @@ void ImageSegmenter::projectCloud(const typename pcl::PointCloud<PointType> &las
                                   typename pcl::PointCloud<PointType> &cloud_matrix,
                                   Eigen::MatrixXf &range_mat,
                                   std::vector<pcl::PointCloud<PointType>> &cloud_scan,
-                                  std::vector<int> &cloud_scan_order)
+                                  std::vector<int> &cloud_scan_order) 
 {
     // convert point cloud to a range image
     float vertical_angle, horizon_angle, range;
-    int row_id, column_id;
+    int row_id, column_id; //row_id: 线号；row_id=0最低下线束scan，row_id=15最上面线束scan
     for (size_t i = 0; i < laser_cloud_in.size(); i++)
     {
         PointType point = laser_cloud_in.points[i];
@@ -116,8 +116,11 @@ void ImageSegmenter::projectCloud(const typename pcl::PointCloud<PointType> &las
                 continue;
         }
 
-        horizon_angle = atan2(point.x, point.y) * 180 / M_PI;
-        column_id = -round((horizon_angle - 90.0) / ang_res_x_) + horizon_scans_ / 2;
+        horizon_angle = atan2(point.x, point.y) * 180 / M_PI; //不是atan2(y, x)
+        column_id = -round((horizon_angle - 90.0) / ang_res_x_) + horizon_scans_ / 2; 
+        //horizon_angle: 前左后右，角度依次是90度， 0度， -90度， 180度
+        //column_id： 前右后左(顺时针)依次对应0，450， 900, 1350，顺时针依次存放; 
+        
         if (column_id >= horizon_scans_)
             column_id -= horizon_scans_;
         if (column_id < 0 || column_id >= horizon_scans_)
@@ -130,19 +133,19 @@ void ImageSegmenter::projectCloud(const typename pcl::PointCloud<PointType> &las
         cloud_matrix.points[index] = point;
         range_mat(row_id, column_id) = range;
 
-        cloud_scan[row_id].push_back(point); // without changing the point order
-        cloud_scan_order[index] = cloud_scan[row_id].size() - 1;
+        cloud_scan[row_id].push_back(point); // without changing the point order，依次存放的是前左后右逆时针顺序points
+        cloud_scan_order[index] = cloud_scan[row_id].size() - 1; //点在对应线中的index, 依次按照前左后右逆时针顺序，index从0开始
     }
 }
 
 template <typename PointType>
 void ImageSegmenter::segmentCloud(const typename pcl::PointCloud<PointType> &laser_cloud_in,
-                                  typename pcl::PointCloud<PointType> &laser_cloud_out,
-                                  typename pcl::PointCloud<PointType> &laser_cloud_outlier,
+                                  typename pcl::PointCloud<PointType> &laser_cloud_out, //[out]
+                                  typename pcl::PointCloud<PointType> &laser_cloud_outlier, //[out]
                                   ScanInfo &scan_info)
 {
     // set specific parameters
-    Eigen::MatrixXf range_mat = Eigen::MatrixXf::Constant(vertical_scans_, horizon_scans_, FLT_MAX);
+    Eigen::MatrixXf range_mat = Eigen::MatrixXf::Constant(vertical_scans_, horizon_scans_, FLT_MAX); //16*1800
     Eigen::MatrixXi label_mat = Eigen::MatrixXi::Zero(vertical_scans_, horizon_scans_);
 
     pcl::PointCloud<PointType> cloud_matrix;
@@ -165,7 +168,7 @@ void ImageSegmenter::segmentCloud(const typename pcl::PointCloud<PointType> &las
     for (size_t i = 0; i < vertical_scans_; i++)
         for (size_t j = 0; j < horizon_scans_; j++)
             if (range_mat(i, j) == FLT_MAX) 
-                label_mat(i, j) = -1;
+                label_mat(i, j) = -1; //无效点：-1
 
     // label ground points
     int label_count = 1;
@@ -215,7 +218,7 @@ void ImageSegmenter::segmentCloud(const typename pcl::PointCloud<PointType> &las
                 vertical_angle = atan2(diff_z, sqrt(diff_x * diff_x + diff_y * diff_y)) * 180 / M_PI;
                 if (abs(vertical_angle) <= 10) // 10deg
                 {
-                    label_mat(i, j) = label_count;
+                    label_mat(i, j) = label_count; //地面点是：1
                     label_mat(i+1, j) = label_count;
                 }
             }
@@ -228,7 +231,7 @@ void ImageSegmenter::segmentCloud(const typename pcl::PointCloud<PointType> &las
     {
         for (size_t j = 0; j < horizon_scans_; j++)
         {
-            if (label_mat(i, j) == 0)
+            if (label_mat(i, j) == 0)//非地面点
             {
                 int row = i;
                 int col = j;
@@ -371,8 +374,8 @@ void ImageSegmenter::segmentCloud(const typename pcl::PointCloud<PointType> &las
                     int index = j + i * horizon_scans_;
                     if (label_mat(i, j) == 999999)
                     {
-                        cloud_scan[i].erase(cloud_scan[i].begin() + cloud_scan_order[index]);
-                        if (j % 5 == 0)
+                        cloud_scan[i].erase(cloud_scan[i].begin() + cloud_scan_order[index]); //移除没有聚类的点
+                        if (j % 5 == 0) //每隔5个点存
                             laser_cloud_outlier.push_back(cloud_matrix.points[index]);
                     }
                 }
