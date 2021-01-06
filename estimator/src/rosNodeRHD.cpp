@@ -109,7 +109,7 @@ void sync_process()
             for (size_t i = 0; i < all_cloud_buf.size(); i++) all_cloud_buf[i].pop();
             printf("size of finding laser_cloud: %s\n", ss.str().c_str());
         }
-        while (!all_cloud_buf[0].empty()) //TODO：把当前队列中，缓冲两个雷达的所有数据全部删除；不是每帧scan都会处理
+        while (!all_cloud_buf[0].empty()) //TODO(jxl): 把当前队列中，缓冲两个雷达的所有数据全部删除；不是每帧scan都会处理
         {
             frame_drop_cnt++;
             for (size_t i = 0; i < all_cloud_buf.size(); i++)
@@ -208,9 +208,9 @@ int main(int argc, char **argv)
     typedef message_filters::Subscriber<LidarMsgType> LidarSubType;
 
     std::vector<LidarSubType *> sub_lidar(2);
-    NUM_OF_LASER = NUM_OF_LASER < 2 ? NUM_OF_LASER : 2; //TODO: 雷达数量超过2个时强制为2个雷达
+    NUM_OF_LASER = NUM_OF_LASER < 2 ? NUM_OF_LASER : 2; //TODO(jxl): 雷达数量超过2个时强制为2个雷达
     for (size_t i = 0; i < NUM_OF_LASER; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[i], 1);
-    // for (size_t i = NUM_OF_LASER; i < 2; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[0], 1);//TODO: 该语句好像是多余的
+    // for (size_t i = NUM_OF_LASER; i < 2; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[0], 1);//TODO(jxl): 该语句好像是多余的
     message_filters::Synchronizer<LidarSyncPolicy> *lidar_synchronizer =
         new message_filters::Synchronizer<LidarSyncPolicy>(
             LidarSyncPolicy(10), *sub_lidar[0], *sub_lidar[1]);

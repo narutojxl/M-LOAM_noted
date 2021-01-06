@@ -151,14 +151,16 @@ void FeatureExtract::matchCornerFromScan(const typename pcl::KdTreeFLANN<PointTy
     for (size_t i = 0; i < cloud_data.points.size(); i++)
     {
         // not consider distortion
-        TransformToStart(cloud_data.points[i], point_sel, pose_local, false, SCAN_PERIOD);
+        TransformToStart(cloud_data.points[i], point_sel, pose_local, false, SCAN_PERIOD); 
+        //先把当前帧的points转换到当前帧的start下  
+        //TODO(jxl): 应该为true？
         kdtree_corner_from_scan->nearestKSearch(point_sel, 1, point_search_ind, point_search_sqdis);
 
         int closest_point_ind = -1, min_point_ind2 = -1;
         if (point_search_sqdis[0] < DISTANCE_SQ_THRESHOLD)
         {
             closest_point_ind = point_search_ind[0];
-            int closest_point_scan_id = int(cloud_scan.points[closest_point_ind].intensity);
+            int closest_point_scan_id = int(cloud_scan.points[closest_point_ind].intensity);//点的intensity = 线束号 + 时间比例
 
             float min_point_sqdis2 = DISTANCE_SQ_THRESHOLD;
             // search in the direction of increasing scan line
@@ -290,6 +292,7 @@ void FeatureExtract::matchSurfFromScan(const typename pcl::KdTreeFLANN<PointType
     {
         // not consider distortion
         TransformToStart(cloud_data.points[i], point_sel, pose_local, false, SCAN_PERIOD);
+        //TODO(jxl): 同上
         kdtree_surf_from_scan->nearestKSearch(point_sel, 1, point_search_ind, point_search_sqdis);
 
         int closest_point_ind = -1, min_point_ind2 = -1, min_point_ind3 = -1;
@@ -313,7 +316,7 @@ void FeatureExtract::matchSurfFromScan(const typename pcl::KdTreeFLANN<PointType
                 if (int(cloud_scan.points[j].intensity) <= closest_point_scan_id && point_sqdis < min_point_sqdis2)
                 {
                     min_point_sqdis2 = point_sqdis;
-                    min_point_ind2 = j;
+                    min_point_ind2 = j; //
                 }
                 // if in the higher scan line
                 else if (int(cloud_scan.points[j].intensity) > closest_point_scan_id && point_sqdis < min_point_sqdis3)
@@ -359,16 +362,19 @@ void FeatureExtract::matchSurfFromScan(const typename pcl::KdTreeFLANN<PointType
                                              cloud_scan.points[min_point_ind3].z);
                 Eigen::Vector3f w = (last_point_j - last_point_l).cross(last_point_j - last_point_m);
                 w.normalize();
-                float negative_OA_dot_norm = -w.dot(last_point_j);
+                float negative_OA_dot_norm = -w.dot(last_point_j); //k帧scan坐标系原点到(j,l,m)平面的距离
                 float pd2 = -(w.x() * point_sel.x + w.y() * point_sel.y + w.z() * point_sel.z + negative_OA_dot_norm); // distance
+                //TODO(jxl): 感觉这的pd2会总是负值，待验证
+                //https://en.wikipedia.org/wiki/Hesse_normal_form
+
                 float s = 1 - 0.9f * fabs(pd2) / sqrt(sqrSum(point_sel.x, point_sel.y, point_sel.z));
 
-                Eigen::Vector4d coeff(w.x(), w.y(), w.z(), negative_OA_dot_norm);
+                Eigen::Vector4d coeff(w.x(), w.y(), w.z(), negative_OA_dot_norm); //TODO(jxl): negative_OA_dot_norm
                 PointPlaneFeature feature;
                 feature.idx_ = i;
                 feature.point_ = Eigen::Vector3d{cloud_data.points[i].x, cloud_data.points[i].y, cloud_data.points[i].z};
                 feature.coeffs_ = coeff;
-                feature.type_ = 's';
+                feature.type_ = 's'; //TODO(jxl): corner points为默认类型‘n’
                 features.push_back(feature);
             }
         }
@@ -717,7 +723,7 @@ bool FeatureExtract::matchCornerPointFromMap(const typename pcl::KdTreeFLANN<Poi
             {
                 is_in_laser_fov = true;
             }
-            if (is_in_laser_fov) // TODO
+            if (is_in_laser_fov)
             {
                 // Eigen::Vector3f point_on_line = center;
                 // Eigen::Vector3f X0(point_sel.x, point_sel.y, point_sel.z);

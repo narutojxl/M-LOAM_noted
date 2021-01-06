@@ -53,7 +53,7 @@ void Estimator::setParameter()
     covbl_.resize(NUM_OF_LASER);
     for (size_t i = 0; i < NUM_OF_LASER; i++)
     {
-        qbl_[i] = QBL[i];
+        qbl_[i] = QBL[i]; //QBL, TBL, TDBL, COV_EXT: read from config file
         tbl_[i] = TBL[i];
         tdbl_[i] = TDBL[i];
         covbl_[i] = COV_EXT[i];
@@ -257,7 +257,7 @@ void Estimator::inputCloud(const double &t, const std::vector<PointCloud> &v_las
 
             PointICloud laser_cloud_segment, laser_cloud_outlier;
             ScanInfo scan_info(N_SCANS, SEGMENT_CLOUD); //16*1
-            if (ESTIMATE_EXTRINSIC != 0) scan_info.segment_flag_ = false; //TODO：当需要对外参提纯或者估计外参时，不对点云进行分割
+            if (ESTIMATE_EXTRINSIC != 0) scan_info.segment_flag_ = false; //TODO(jxl)：当需要对外参提纯或者估计外参时，不移除没有聚类的点
             img_segment_.segmentCloud(laser_cloud, laser_cloud_segment, laser_cloud_outlier, scan_info);
             //laser_cloud_outlier: 没有形成聚类的points
             //对点云进行聚类，把没有聚类的点移除； 点的强度为：线号(最底下线束为0，最上面线束最大)+时间比例
@@ -358,7 +358,7 @@ void Estimator::processMeasurements()
             assert(cur_feature_.second.size() == NUM_OF_LASER);
 
             m_buf_.lock();
-            feature_buf_.pop();
+            feature_buf_.pop(); //处理一帧，pop一次
             m_buf_.unlock();
 
             m_process_.lock();
@@ -409,6 +409,8 @@ void Estimator::undistortMeasurements(const std::vector<Pose> &pose_undist)
             // Pose pose_undist = pose_ext.inverse() * pose_rlt_[IDX_REF] * pose_ext;
             // for (PointI &point : cur_feature_.second[n]["corner_points_sharp"]) TransformToEnd(point, point, pose_undist, true, SCAN_PERIOD);
             // for (PointI &point : cur_feature_.second[n]["surf_points_flat"]) TransformToEnd(point, point, pose_undist, true, SCAN_PERIOD);
+
+            //把当前帧的feature points转换到当前帧的end下  //TODO(jxl):为何不是pose_undist[n]
             for (PointI &point : cur_feature_.second[n]["corner_points_less_sharp"]) TransformToEnd(point, point, pose_undist[IDX_REF], true, SCAN_PERIOD);
             for (PointI &point : cur_feature_.second[n]["surf_points_less_flat"]) TransformToEnd(point, point, pose_undist[IDX_REF], true, SCAN_PERIOD);
 			for (PointI &point : cur_feature_.second[n]["laser_cloud"]) TransformToEnd(point, point, pose_undist[IDX_REF], true, SCAN_PERIOD);
@@ -418,11 +420,11 @@ void Estimator::undistortMeasurements(const std::vector<Pose> &pose_undist)
 
 void Estimator::process()
 {
-    if (!b_system_inited_)
+    if (!b_system_inited_) //第一帧scan
     {
         b_system_inited_ = true;
         // printf("System initialization finished \n");
-    } else
+    } else 
     {
         common::timing::Timer tracker_timer("odom_tracker");
         // -----------------
@@ -477,10 +479,15 @@ void Estimator::process()
         }
         else if (ESTIMATE_EXTRINSIC != 2)
         {
-            cloudFeature &cur_cloud_feature = cur_feature_.second[IDX_REF];
-            cloudFeature &prev_cloud_feature = prev_feature_.second[IDX_REF];
+            cloudFeature &cur_cloud_feature = cur_feature_.second[IDX_REF]; //k+1帧主雷达features，当前帧的points还是在当前帧各个时刻下采集的points
+            cloudFeature &prev_cloud_feature = prev_feature_.second[IDX_REF]; //k帧主雷达features，在上一个周期末尾已经转换到了k帧end下
             pose_rlt_[IDX_REF] = lidar_tracker_.trackCloud(prev_cloud_feature, cur_cloud_feature, pose_rlt_[IDX_REF]);
+            //在之前主雷达相邻两scan的delta_T初值基础上，用主雷达当前帧scan和主雷达上一帧scan，计算delta_T，作为返回值返回
+            //没有用副雷达的feature points
+
             pose_laser_cur_[IDX_REF] = Pose(Qs_[cir_buf_cnt_ - 1], Ts_[cir_buf_cnt_ - 1]) * pose_rlt_[IDX_REF];
+            //里程计位姿累积
+
             // std::cout << "pose_rlt: " << pose_rlt_[IDX_REF] << std::endl;
             // LOG_EVERY_N(INFO, 20) << "lidarTracker: " << t_mloam_tracker.toc() << "ms";
             printf("lidarTracker: %fms\n", tracker_timer.Stop() * 1000);
@@ -497,12 +504,12 @@ void Estimator::process()
     {
         PointICloud &corner_points = cur_feature_.second[n]["corner_points_less_sharp"];
         down_size_filter_corner_.setInputCloud(boost::make_shared<PointICloud>(corner_points));
-        down_size_filter_corner_.filter(corner_points_stack_[n][cir_buf_cnt_]);
+        down_size_filter_corner_.filter(corner_points_stack_[n][cir_buf_cnt_]); //raw curr feature points(没有畸变的)
         corner_points_stack_size_[n][cir_buf_cnt_] = corner_points_stack_[n][cir_buf_cnt_].size();
 
         PointICloud &surf_points = cur_feature_.second[n]["surf_points_less_flat"];
         down_size_filter_surf_.setInputCloud(boost::make_shared<PointICloud>(surf_points));
-        down_size_filter_surf_.filter(surf_points_stack_[n][cir_buf_cnt_]);
+        down_size_filter_surf_.filter(surf_points_stack_[n][cir_buf_cnt_]); //raw curr feature points(没有畸变的)
         surf_points_stack_size_[n][cir_buf_cnt_] = surf_points_stack_[n][cir_buf_cnt_].size();
     }
     // printSlideWindow();
@@ -517,7 +524,7 @@ void Estimator::process()
             if (cir_buf_cnt_ < WINDOW_SIZE)
             {
                 cir_buf_cnt_++;
-                if (cir_buf_cnt_ == WINDOW_SIZE)
+                if (cir_buf_cnt_ == WINDOW_SIZE) //执行第4帧scan时，WINDOW_SIZE=4
                 {
                     slideWindow(); 
                 }
@@ -553,7 +560,7 @@ void Estimator::process()
             cur_feature_.second[n].find("surf_points_less_flat")->second));
     }
 
-    if (DISTORTION)
+    if (DISTORTION) //TODO(jxl): 应该为if(true)
     {
         Pose pose_laser_cur = Pose(Qs_[cir_buf_cnt_ - 1], Ts_[cir_buf_cnt_ - 1]);
         std::vector<Pose> pose_undist = pose_rlt_;
@@ -588,7 +595,10 @@ void Estimator::process()
             Pose pose_ext(qbl_[n], tbl_[n]);
             pose_undist[n] = pose_ext.inverse() * pose_rlt_[IDX_REF] * pose_ext;
         }
-        undistortMeasurements(pose_undist);
+        undistortMeasurements(pose_undist);  
+        //pose_undist[0], [1]: 主雷达k帧到k+1帧(相邻两帧laser)的delta_T, 副雷达k帧到k+1帧的delta_T
+        //把当前帧的feature points转换到当前帧的end下
+        
 
         // for (size_t n = 0; n < NUM_OF_LASER; n++)
         // {
@@ -598,6 +608,7 @@ void Estimator::process()
         // }
 
         pose_laser_prev_ = pose_laser_cur;
+        //TODO(jxl): 为何不在对当前帧feature points去畸变后，再和prev feature points交换
     }
 }
 

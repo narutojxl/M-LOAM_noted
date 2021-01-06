@@ -161,7 +161,7 @@ public:
 
         Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> mat_jacobian(jaco[0]);
         feature.jaco_ = mat_jacobian.topLeftCorner<1, 6>();
-        // feature.jaco_ *= sqrt(std::max(0.0, rho[1])); // TODO
+        // feature.jaco_ *= sqrt(std::max(0.0, rho[1]));
         // LOG_EVERY_N(INFO, 2000) << "error: " << sqrt(sqr_error) << ", rho_der: " << rho[1] 
         //                         << ", logd: " << common::logDet(feature.jaco_.transpose() * feature.jaco_, true);
 

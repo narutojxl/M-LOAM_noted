@@ -164,10 +164,10 @@ class PointPlaneFeature
 {
 public:
     PointPlaneFeature() : idx_(0), laser_idx_(0), type_('n') {}
-    size_t idx_;
-    size_t laser_idx_;
-    Eigen::Vector3d point_;
-    Eigen::VectorXd coeffs_;
+    size_t idx_; //在k+1帧feature points中的index。
+    size_t laser_idx_; //计算前端里程计不用，在后端中使用。
+    Eigen::Vector3d point_; //在k+1帧feature points中的坐标, point i。    p_sel = R_k_k+1 * i + t_k_k+1， 然后在k帧feature kd-tree points中找最近邻points
+    Eigen::VectorXd coeffs_; //corner correspondace(i: j, l)； surf correspondace(i: j, l, m)平面方程系数；
     Eigen::MatrixXd jaco_;
     char type_;
 

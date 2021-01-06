@@ -227,6 +227,7 @@ private:
 };
 
 // *******************************************************************
+//没有使用
 class LidarOnlineCalibEdgeFactor_bck : public ceres::SizedCostFunction<3, 7>
 {
 public:

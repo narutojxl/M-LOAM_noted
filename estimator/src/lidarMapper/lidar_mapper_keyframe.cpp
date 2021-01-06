@@ -1146,7 +1146,7 @@ void cloudUCTAssociateToMap(const PointICovCloud &cloud_local,
         if (with_ua_flag)
         {
             pointAssociateToMap(point_ori, point_sel, pose_ext[ind].inverse());
-            evalPointUncertainty(point_sel, cov_point, pose_compound[ind]); // TODO
+            evalPointUncertainty(point_sel, cov_point, pose_compound[ind]); 
             if (cov_point.trace() > TRACE_THRESHOLD_MAPPING) continue;
         }
         pointAssociateToMap(point_ori, point_cov, pose_global);

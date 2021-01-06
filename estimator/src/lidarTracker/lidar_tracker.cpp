@@ -38,10 +38,10 @@ Pose LidarTracker::trackCloud(const cloudFeature &prev_cloud_feature,
     PointICloudPtr surf_points_flat = boost::make_shared<PointICloud>(cur_cloud_feature.find("surf_points_flat")->second);
 
     // step 3: set initial pose
-    double para_pose[SIZE_POSE] = {pose_ini.t_(0), pose_ini.t_(1), pose_ini.t_(2),
+    double para_pose[SIZE_POSE] = {pose_ini.t_(0), pose_ini.t_(1), pose_ini.t_(2), 
                                    pose_ini.q_.x(), pose_ini.q_.y(), pose_ini.q_.z(), pose_ini.q_.w()};
 
-    for (size_t iter_cnt = 0; iter_cnt < 2; iter_cnt++)
+    for (size_t iter_cnt = 0; iter_cnt < 2; iter_cnt++) //TODO(jxl): 前端里程计ceres迭代两个周期
     {
         ceres::Problem problem;
         ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
@@ -55,6 +55,9 @@ Pose LidarTracker::trackCloud(const cloudFeature &prev_cloud_feature,
         Pose pose_local = Pose(Eigen::Quaterniond(para_pose[6], para_pose[3], para_pose[4], para_pose[5]),
                                Eigen::Vector3d(para_pose[0], para_pose[1], para_pose[2]));
         
+        //利用之前主雷达相邻两scan的delta_T作为初值，把k+1帧feature points转换到k+1帧start下，(k帧feature points已经在上次结束末尾转换到k帧end下)
+        //然后在k帧feature kd-tree points中找最近邻points
+        //corner correspondace(i: j, l)； surf correspondace(i: j, l, m)平面方程系数；
         f_extract_.matchCornerFromScan(kdtree_corner_last, *corner_points_last, *corner_points_sharp, pose_local, corner_scan_features);
         f_extract_.matchSurfFromScan(kdtree_surf_last, *surf_points_last, *surf_points_flat, pose_local, surf_scan_features);
         
@@ -75,7 +78,7 @@ Pose LidarTracker::trackCloud(const cloudFeature &prev_cloud_feature,
             // else
             //     s = 1.0;
             LidarScanPlaneNormFactor *f = new LidarScanPlaneNormFactor(feature.point_, feature.coeffs_, s);
-            problem.AddResidualBlock(f, loss_function, para_pose);
+            problem.AddResidualBlock(f, loss_function, para_pose); //平移在前，旋转在后
         }
 
         CHECK_JACOBIAN = 0;
@@ -111,7 +114,7 @@ Pose LidarTracker::trackCloud(const cloudFeature &prev_cloud_feature,
         TicToc t_solver;
         ceres::Solver::Options options;
         options.linear_solver_type = ceres::DENSE_SCHUR;
-        options.max_num_iterations = 4;
+        options.max_num_iterations = 4; //TODO(jxl): ceres迭代计算4次
         // options.max_solver_time_in_seconds = 0.005;
         options.minimizer_progress_to_stdout = false;
         // options.check_gradients = false;

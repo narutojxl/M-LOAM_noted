@@ -39,7 +39,7 @@ public:
 
         Eigen::Vector3d w(coeff_(0), coeff_(1), coeff_(2));
         double d = coeff_(3);
-        double a = w.dot(q_last_curr * point_ + t_last_curr) + d;
+        double a = w.dot(q_last_curr * point_ + t_last_curr) + d; //TODO(jxl): https://en.wikipedia.org/wiki/Hesse_normal_form
         residuals[0] = a;
 
         if (jacobians)
@@ -47,11 +47,13 @@ public:
             Eigen::Matrix3d R = q_last_curr.toRotationMatrix();
             if (jacobians[0])
             {
-                Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> jacobian_pose(jacobians[0]);
+                Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> jacobian_pose(jacobians[0]); //(r,t)是一个整体
                 Eigen::Matrix<double, 1, 6> jaco; // [dy/dt, dy/dR, 1]
                 jaco.setZero();
                 jaco.leftCols<3>() = w.transpose();
-                jaco.rightCols<3>() = -w.transpose() * R * Utility::skewSymmetric(point_);
+                jaco.rightCols<3>() = -w.transpose() * R * Utility::skewSymmetric(point_); 
+                //m-loam paper equ.38
+                //Supplementary Material to: Greedy-Based Feature Selection for Efficient LiDAR SLAM  equ.7
 
                 jacobian_pose.setZero();
                 jacobian_pose.leftCols<6>() = jaco;
@@ -122,7 +124,7 @@ public:
 private:
     Eigen::Vector3d point_;
     Eigen::Vector4d coeff_;
-    double s_;
+    double s_; //1
 };
 
 // ****************************************************************
@@ -148,7 +150,7 @@ public:
 
         Eigen::Vector3d nu = (lp - lpa).cross(lp - lpb);
         Eigen::Vector3d de = lpa - lpb;
-        residuals[0] = nu.norm() / de.norm();
+        residuals[0] = nu.norm() / de.norm(); //点到直线的距离
 
         if (jacobians)
         {
@@ -160,7 +162,8 @@ public:
 
                 Eigen::Matrix<double, 1, 3> eta = 1.0 / de.norm() * nu.normalized().transpose();
                 jaco.leftCols<3>() = -eta * Utility::skewSymmetric(lpa - lpb);
-                jaco.rightCols<3>() = eta * Utility::skewSymmetric(lpa - lpb) * R * Utility::skewSymmetric(point_);
+                jaco.rightCols<3>() = eta * Utility::skewSymmetric(lpa - lpb) * R * Utility::skewSymmetric(point_); //右扰动
+                //见Supplementary Material to: Greedy-Based Feature Selection for Efficient LiDAR SLAM  equ.6
 
                 jacobian_pose.setZero();
                 jacobian_pose.leftCols<6>() = jaco;
@@ -270,6 +273,7 @@ public:
                 double eta = 1.0 / de.norm();
                 jaco.leftCols<3>() = -eta * Utility::skewSymmetric(lpa - lpb);
                 jaco.rightCols<3>() = eta * Utility::skewSymmetric(lpa - lpb) * R * Utility::skewSymmetric(point_);
+                //类比点到直线的距离的雅克比
 
                 jacobian_pose.setZero();
                 jacobian_pose.leftCols<6>() = jaco;
@@ -339,5 +343,5 @@ public:
 private:
     const Eigen::Vector3d point_;
     const Eigen::VectorXd coeff_;
-    const double s_;
+    const double s_; //1
 };

@@ -26,11 +26,11 @@ opt_window_size: 2
 
 ############################## For normal use
 # Extrinsic parameter between multiple LiDARs.
+#代码中当需要对外参提纯或者估计外参时，不对点云进行分割 
 estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Have no prior about extrinsic parameters. We will initialize and optimize around them
 
-#代码中当需要对外参提纯或者估计外参时，不对点云进行分割 
 
 # qx qy qz qw px py pz
 body_T_laser: !!opencv-matrix
@@ -47,6 +47,8 @@ body_T_laser: !!opencv-matrix
    #        0.32182, -0.00094, 0.00744, 0.94677, 0.06641, -0.49424, -0.11251] # refinement
    data: [0, 0, 0, 1, 0, 0, 0,
           0.34087, -0.0101817, 0.0147921, 0.945613, 0.0334837, -0.540249, -0.141798] # PS-Calib
+#主雷达到各个雷达的外参
+
 
 ############################## For Journal experiments
 # 1
@@ -100,9 +102,9 @@ td: !!opencv-matrix                 # initial value of time offset. unit: s. rea
    dt: d
    data: [0, 0]
 
-distortion: 0  #1：带运动畸变的scan； 0： 不带运动畸变的scan
+distortion: 1  #1：带运动畸变的scan, 代码中要去做畸变； 0： 不带运动畸变的scan； default: 0
 scan_period: 0.1  #雷达10hz
-laser_sync_threshold: 0.07   #
+laser_sync_threshold: 0.07
 
 ######################################################## odometry
 # optimization 
@@ -110,8 +112,8 @@ max_solver_time: 0.015  # max solver itration time (s), to guarantee real time
 max_num_iterations: 4   # max solver itrations, to guarantee real time
 
 roi_range: 0.5  #0.5m以内的points不考虑
-distance_sq_threshold: 25
-nearby_scan: 2.5
+distance_sq_threshold: 25  #k+1帧laser转换到k帧laser后，kd-tree查找最近点的阈值距离平方
+nearby_scan: 2.5  #corner correspondace(i: j, l) and surf correspondace(i: j, l, m)所在的线束号与i点所在的线束号不能超过2.5
 
 # movement type
 planar_movement: 0

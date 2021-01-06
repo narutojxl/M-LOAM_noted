@@ -62,7 +62,7 @@ inline void TransformToStart(const PointType &pi, PointType &po, const Pose &pos
     }
     double s = 1.0; //interpolation ratio
     if (b_distortion)
-        s = (pi.intensity - int(pi.intensity)) / scan_period;
+        s = (pi.intensity - int(pi.intensity)) / scan_period; //s: 点在一帧中的时间比例
     po = pi;
     // spherically interpolates between q1 and q2 by the interpolation coefficient t
     Eigen::Quaterniond q_point_last = Eigen::Quaterniond::Identity().slerp(s, pose.q_);
@@ -89,9 +89,9 @@ inline void TransformToEnd(const PointType &pi, PointType &po, const Pose &pose,
         exit(EXIT_FAILURE);
     }
     PointType un_point_tmp;
-    TransformToStart(pi, un_point_tmp, pose, b_distortion, scan_period);
+    TransformToStart(pi, un_point_tmp, pose, b_distortion, scan_period); //un_point_tmp：把当前帧scan points转换到当前帧的start下（按照时间比例线性插值）
     Eigen::Vector3d un_point(un_point_tmp.x, un_point_tmp.y, un_point_tmp.z);
-    Eigen::Vector3d point_end = pose.q_.inverse() * (un_point - pose.t_);
+    Eigen::Vector3d point_end = pose.q_.inverse() * (un_point - pose.t_); //point_end: 转换到当前帧的end下
     
     po.x = point_end.x();
     po.y = point_end.y();
@@ -168,7 +168,7 @@ inline void CRSMatrix2EigenMatrix(const ceres::CRSMatrix &crs_matrix, Eigen::Spa
 class Utility
 {
   public:
-    template <typename Derived>
+    template <typename Derived> //轴角到四元数
     static Eigen::Quaternion<typename Derived::Scalar> deltaQ(const Eigen::MatrixBase<Derived> &theta)
     {
         typedef typename Derived::Scalar Scalar_t;

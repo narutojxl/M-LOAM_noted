@@ -43,7 +43,7 @@ float SEGMENT_THETA;
 // LiDAR
 size_t NUM_OF_LASER;
 size_t N_SCANS;
-size_t IDX_REF;
+size_t IDX_REF; //0
 
 int WINDOW_SIZE;
 int OPT_WINDOW_SIZE;
