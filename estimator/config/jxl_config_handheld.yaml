@@ -24,6 +24,7 @@ cloud_topic:
 window_size: 4
 opt_window_size: 2
 
+
 ############################## For normal use
 # Extrinsic parameter between multiple LiDARs.
 #代码中当需要对外参提纯或者估计外参时，不对点云进行分割 
@@ -108,8 +109,9 @@ laser_sync_threshold: 0.07
 
 ######################################################## odometry
 # optimization 
-max_solver_time: 0.015  # max solver itration time (s), to guarantee real time
-max_num_iterations: 4   # max solver itrations, to guarantee real time
+lm_opt_enable: 1 #是否用滑窗把lidar odom位姿与local map进行匹配，再次refine。1：是，0：否。
+max_solver_time: 0.05   # max solver itration time (s), to guarantee real time 滑窗允许计算时间，default=0.015
+max_num_iterations: 4   # max solver itrations, to guarantee real time  滑窗ceres迭代次数
 
 roi_range: 0.5  #0.5m以内的points不考虑
 distance_sq_threshold: 25  #k+1帧laser转换到k帧laser后，kd-tree查找最近点的阈值距离平方
@@ -119,16 +121,16 @@ nearby_scan: 2.5  #corner correspondace(i: j, l) and surf correspondace(i: j, l,
 planar_movement: 0
 
 # feature corresponding paprameters
-min_match_sq_dis: 1.0
-min_plane_dis: 0.2
+min_match_sq_dis: 1.0 #滑窗中local map kdtree中找对应点(corner and surf correspondance)阈值距离平方
+min_plane_dis: 0.2 #滑窗中local map kdtree中找对应点的cov valid分析
 
 # factor
-marginalization_factor: 1
+marginalization_factor: 1 #滑窗边缘化残差
 point_plane_factor: 1
 point_edge_factor: 1
 prior_factor: 1
-prior_factor_pos: 5
-prior_factor_rot: 40
+prior_factor_pos: 5  #外参平移残差权重
+prior_factor_rot: 40 #外参旋转残差权重
 
 pcl_viewer: 0
 pcl_viewer_normal_ratio: 10

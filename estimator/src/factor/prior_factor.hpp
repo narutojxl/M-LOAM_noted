@@ -46,6 +46,7 @@ public:
         Eigen::Map<Eigen::Matrix<double, 6, 1> > residual(residuals);
         residual.topRows<3>() = P - pos_;
         residual.bottomRows<3>() = 2 * (rot_.inverse() * Q).coeffs().head<3>(); // 6*1 [dx dy dz dqx dqy dqz]
+        //Log({R0}^-1 * R)
 
         // FIXME: info
         residual = sqrt_info * residual;
@@ -60,6 +61,8 @@ public:
                 jaco_prior.setIdentity();
 
                 jaco_prior.bottomRightCorner<3, 3>() = LeftQuatMatrix(Q.inverse() * rot_).topLeftCorner<3, 3>();
+                //jxl: https://github.com/hyye/lio-mapping/issues/69
+                //TODO(jxl): 和作者邮件沟通后，确认mloam和lio-mapping一样，四元数都是JPL下的惯例
 
                 // FIXME: info
                 jacobian_prior.setZero();

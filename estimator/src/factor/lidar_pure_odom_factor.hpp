@@ -30,29 +30,30 @@ public:
 	LidarPureOdomPlaneNormFactor(const Eigen::Vector3d &point,
 								 const Eigen::Vector4d &coeff,
 								 const double &sqrt_info = 1.0)
-		: point_(point),
-		  coeff_(coeff),
+		: point_(point), //n雷达在i帧下的点
+		  coeff_(coeff), //n雷达在i帧下的点,在自己local map下的correspondances形成的平面方程；
 		  sqrt_info_(sqrt_info) {}
 
 	// residual = sum(w^(T) * (R * p + t) + d)
 	bool Evaluate(double const *const *param, double *residuals, double **jacobians) const
     {
 		Eigen::Quaterniond Q_pivot(param[0][6], param[0][3], param[0][4], param[0][5]);
-		Eigen::Vector3d t_pivot(param[0][0], param[0][1], param[0][2]);
+		Eigen::Vector3d t_pivot(param[0][0], param[0][1], param[0][2]); //主雷达pivot pose,  Xv[0]
 		Eigen::Quaterniond Q_i(param[1][6], param[1][3], param[1][4], param[1][5]);
-		Eigen::Vector3d t_i(param[1][0], param[1][1], param[1][2]);
+		Eigen::Vector3d t_i(param[1][0], param[1][1], param[1][2]); //主雷达Xv[i], i≠0
 		Eigen::Quaterniond Q_ext(param[2][6], param[2][3], param[2][4], param[2][5]);
-		Eigen::Vector3d t_ext(param[2][0], param[2][1], param[2][2]);
+		Eigen::Vector3d t_ext(param[2][0], param[2][1], param[2][2]); //主雷达到n雷达的外参
 
 		Eigen::Quaterniond Q_pi = Q_pivot.conjugate() * Q_i;
-		Eigen::Vector3d t_pi = Q_pivot.conjugate() * (t_i - t_pivot);
-		Eigen::Quaterniond Q_ext_pi = Q_pi * Q_ext;
-		Eigen::Vector3d t_ext_pi = Q_pi * t_ext + t_pi;
+		Eigen::Vector3d t_pi = Q_pivot.conjugate() * (t_i - t_pivot);//(Q_pi, t_pi): 主雷达pivot帧到主雷达i帧的变换
 
-		Eigen::Vector3d w(coeff_(0), coeff_(1), coeff_(2));
-		const double d = coeff_(3);
-		const double r = w.dot(Q_ext_pi * point_ + t_ext_pi) + d;
-		residuals[0] = sqrt_info_ * r;
+		Eigen::Quaterniond Q_ext_pi = Q_pi * Q_ext;
+		Eigen::Vector3d t_ext_pi = Q_pi * t_ext + t_pi; //(Q_ext_pi, t_ext_pi): 主雷达pivot帧到n雷达i帧的变换
+
+		Eigen::Vector3d w(coeff_(0), coeff_(1), coeff_(2)); //平面单位法向量
+		const double d = coeff_(3); //平面方程到所在坐标系原点的距离
+		const double r = w.dot(Q_ext_pi * point_ + t_ext_pi) + d; //Q_ext_pi * point_ + t_ext_pi: n雷达在i帧下的点，转换到自己的local map下
+		residuals[0] = sqrt_info_ * r; //与自己local map下的correspondances形成的平面方程计算残差
 
 		// jacobians: 3x7
         if (jacobians)

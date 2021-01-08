@@ -26,9 +26,9 @@ void PoseLocalParameterization::setParameter()
 bool PoseLocalParameterization::Plus(const double *x, const double *delta, double *x_plus_delta) const
 {
     Eigen::Map<const Eigen::Vector3d> p(x);
-    Eigen::Map<const Eigen::Quaterniond> q(x + 3);
+    Eigen::Map<const Eigen::Quaterniond> q(x + 3); //raw data pointer: qx, qy, qz, qw
 
-    Eigen::Map<const Eigen::Matrix<double, 6, 1> > dx(delta); // dx = [dp, dq]
+    Eigen::Map<const Eigen::Matrix<double, 6, 1> > dx(delta); // dx = [dp, dq] 局部切空间的向量
     Eigen::Matrix<double, 6, 1> dx_update = V_update_ * dx;
     Eigen::Vector3d dp(dx_update.head<3>());
     Eigen::Quaterniond dq = Utility::deltaQ(dx_update.tail<3>());

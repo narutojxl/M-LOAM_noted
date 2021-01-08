@@ -39,7 +39,7 @@ public:
 
         Eigen::Vector3d w(coeff_(0), coeff_(1), coeff_(2));
         double d = coeff_(3);
-        double a = w.dot(q_last_curr * point_ + t_last_curr) + d; //TODO(jxl): https://en.wikipedia.org/wiki/Hesse_normal_form
+        double a = w.dot(q_last_curr * point_ + t_last_curr) + d; //残差(点到平面的距离)有正有负。没关系，ceres计算的是残差模的平方
         residuals[0] = a;
 
         if (jacobians)

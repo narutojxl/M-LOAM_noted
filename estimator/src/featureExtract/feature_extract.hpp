@@ -154,6 +154,7 @@ void FeatureExtract::matchCornerFromScan(const typename pcl::KdTreeFLANN<PointTy
         TransformToStart(cloud_data.points[i], point_sel, pose_local, false, SCAN_PERIOD); 
         //先把当前帧的points转换到当前帧的start下  
         //TODO(jxl): 应该为true？
+
         kdtree_corner_from_scan->nearestKSearch(point_sel, 1, point_search_ind, point_search_sqdis);
 
         int closest_point_ind = -1, min_point_ind2 = -1;
@@ -364,12 +365,12 @@ void FeatureExtract::matchSurfFromScan(const typename pcl::KdTreeFLANN<PointType
                 w.normalize();
                 float negative_OA_dot_norm = -w.dot(last_point_j); //k帧scan坐标系原点到(j,l,m)平面的距离
                 float pd2 = -(w.x() * point_sel.x + w.y() * point_sel.y + w.z() * point_sel.z + negative_OA_dot_norm); // distance
-                //TODO(jxl): 感觉这的pd2会总是负值，待验证
+                //通过打印发现，w.dot(last_point_j), pd2有正有负
                 //https://en.wikipedia.org/wiki/Hesse_normal_form
 
                 float s = 1 - 0.9f * fabs(pd2) / sqrt(sqrSum(point_sel.x, point_sel.y, point_sel.z));
 
-                Eigen::Vector4d coeff(w.x(), w.y(), w.z(), negative_OA_dot_norm); //TODO(jxl): negative_OA_dot_norm
+                Eigen::Vector4d coeff(w.x(), w.y(), w.z(), negative_OA_dot_norm);
                 PointPlaneFeature feature;
                 feature.idx_ = i;
                 feature.point_ = Eigen::Vector3d{cloud_data.points[i].x, cloud_data.points[i].y, cloud_data.points[i].z};
@@ -572,7 +573,7 @@ void FeatureExtract::matchSurfFromMap(const typename pcl::KdTreeFLANN<PointType>
     for (size_t i = 0; i < cloud_size; i++)
     {
         point_ori = cloud_data.points[i];
-        pointAssociateToMap(point_ori, point_sel, pose_local);
+        pointAssociateToMap(point_ori, point_sel, pose_local); //n号雷达在i处的surf points, 转换到主雷达pivot下
         kdtree_surf_from_map->nearestKSearch(point_sel, num_neighbors, point_search_idx, point_search_sq_dis);
         if (point_search_sq_dis[num_neighbors - 1] < MIN_MATCH_SQ_DIS)
         {
@@ -602,7 +603,7 @@ void FeatureExtract::matchSurfFromMap(const typename pcl::KdTreeFLANN<PointType>
             if (plane_valid)
             {
                 bool is_in_laser_fov = false;
-                if (CHECK_FOV)
+                if (CHECK_FOV) //TODO(jxl): FOV检测的算法原理
                 {
                     PointType transform_pos;
                     PointType point_on_z_axis, point_on_z_axis_trans;
@@ -634,10 +635,10 @@ void FeatureExtract::matchSurfFromMap(const typename pcl::KdTreeFLANN<PointType>
 
                     Eigen::Vector4d coeff(norm(0), norm(1), norm(2), negative_OA_dot_norm);
                     PointPlaneFeature feature;
-                    feature.idx_ = i;
-                    feature.point_ = Eigen::Vector3d{point_ori.x, point_ori.y, point_ori.z};
-                    feature.coeffs_ = coeff;
-                    feature.laser_idx_ = (size_t)point_ori.intensity;
+                    feature.idx_ = i; //n号雷达在滑窗中对应帧下的surf points index
+                    feature.point_ = Eigen::Vector3d{point_ori.x, point_ori.y, point_ori.z}; //n号雷达在滑窗中对应帧下的surf point
+                    feature.coeffs_ = coeff; //correspondances形成的平面方程
+                    feature.laser_idx_ = (size_t)point_ori.intensity; //n号雷达在滑窗中对应帧下的surf point的激光线束号
                     feature.type_ = 's';
                     features[cloud_cnt] = feature;
                     cloud_cnt++;

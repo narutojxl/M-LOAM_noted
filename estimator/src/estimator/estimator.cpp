@@ -257,7 +257,7 @@ void Estimator::inputCloud(const double &t, const std::vector<PointCloud> &v_las
 
             PointICloud laser_cloud_segment, laser_cloud_outlier;
             ScanInfo scan_info(N_SCANS, SEGMENT_CLOUD); //16*1
-            if (ESTIMATE_EXTRINSIC != 0) scan_info.segment_flag_ = false; //TODO(jxl)：当需要对外参提纯或者估计外参时，不移除没有聚类的点
+            if (ESTIMATE_EXTRINSIC != 0) scan_info.segment_flag_ = false; //TODO(jxl):当需要对外参提纯或者估计外参时，不移除没有聚类的点
             img_segment_.segmentCloud(laser_cloud, laser_cloud_segment, laser_cloud_outlier, scan_info);
             //laser_cloud_outlier: 没有形成聚类的points
             //对点云进行聚类，把没有聚类的点移除； 点的强度为：线号(最底下线束为0，最上面线束最大)+时间比例
@@ -524,7 +524,7 @@ void Estimator::process()
             if (cir_buf_cnt_ < WINDOW_SIZE)
             {
                 cir_buf_cnt_++;
-                if (cir_buf_cnt_ == WINDOW_SIZE) //执行第4帧scan时，WINDOW_SIZE=4
+                if (cir_buf_cnt_ == WINDOW_SIZE) //执行第4帧scan时，WINDOW_SIZE=4，slideWindow()执行了两次
                 {
                     slideWindow(); 
                 }
@@ -541,11 +541,16 @@ void Estimator::process()
             // local optimization: optimize the relative LiDAR measurments
             printf("[NON_LINEAR]\n");
             if (LM_OPT_ENABLE) optimizeMap(); 
+
             slideWindow();
+
             if (ESTIMATE_EXTRINSIC) evalCalib();
+
             break;
         }
     }
+
+    ROS_WARN("cir_buf_cnt_ = %d, Qs_.size()=%d", cir_buf_cnt_, Qs_.size());
 
     // pass cur_feature to prev_feature
     prev_time_ = cur_time_;
@@ -614,9 +619,8 @@ void Estimator::process()
 
 void Estimator::optimizeMap()
 {
-    int pivot_idx = WINDOW_SIZE - OPT_WINDOW_SIZE;
+    int pivot_idx = WINDOW_SIZE - OPT_WINDOW_SIZE; //2
 
-    // ****************************************************
     ceres::Problem problem;
     ceres::Solver::Summary summary;
     ceres::LossFunction *loss_function;
@@ -636,9 +640,8 @@ void Estimator::optimizeMap()
     options.max_num_iterations = NUM_ITERATIONS;
     options.max_solver_time_in_seconds = SOLVER_TIME;
 
-    vector2Double();
+    vector2Double(); //给Xv，Xe赋值
 
-    // ****************************************************
     // ceres: add parameter block
     std::vector<double *> para_ids;
     std::vector<PoseLocalParameterization *> local_param_ids;
@@ -650,7 +653,7 @@ void Estimator::optimizeMap()
         local_param_ids.push_back(local_parameterization);
         para_ids.push_back(para_pose_[i]);
     }
-    problem.SetParameterBlockConstant(para_pose_[0]);
+    problem.SetParameterBlockConstant(para_pose_[0]); //主雷达在poivot_idx + 1 处为固定值
 
     for (size_t i = 0; i < NUM_OF_LASER; i++)
     {
@@ -661,7 +664,7 @@ void Estimator::optimizeMap()
         para_ids.push_back(para_ex_pose_[i]);
         if (ESTIMATE_EXTRINSIC == 0) problem.SetParameterBlockConstant(para_ex_pose_[i]);
     }
-    problem.SetParameterBlockConstant(para_ex_pose_[IDX_REF]);
+    problem.SetParameterBlockConstant(para_ex_pose_[IDX_REF]); //主雷达到主雷达的外参为const value
 
     // for (size_t i = 0; i < NUM_OF_LASER; i++)
     // {
@@ -674,7 +677,7 @@ void Estimator::optimizeMap()
     // }
     // problem.SetParameterBlockConstant(&para_td_[IDX_REF]);
 
-    // ****************************************************
+    
     // ceres: add the prior residual into future optimization
     std::vector<ceres::internal::ResidualBlock *> res_ids_marg;
     if ((MARGINALIZATION_FACTOR) && (last_marginalization_info_))
@@ -686,15 +689,18 @@ void Estimator::optimizeMap()
         res_ids_marg.push_back(res_id_marg);
     }
 
-    // ****************************************************
     // ceres: add residual block within the sliding window
     std::vector<ceres::internal::ResidualBlock *> res_ids_proj;
     if (ESTIMATE_EXTRINSIC == 1)
     {
-        buildCalibMap();
+        buildCalibMap(); //1. 构建n号雷达在主雷达pivot下的local surf, corner map; 
+                         //2. 在“n号雷达的local surf, corner map”中找“n号雷达在滑窗中每一帧下points”的correspondances
+        //主雷达local map:   主雷达滑窗内所有帧转到主雷达pivot帧下形成的local map
+        //副雷达m local map：副雷达m滑窗内所有帧转到主雷达pivot帧下形成的local map
+        //副雷达n local map：副雷达n滑窗内所有帧转到主雷达pivot帧下形成的local map
         std::cout << common::YELLOW << "optimization with online calibration" << common::RESET << std::endl;
         
-        if (PRIOR_FACTOR)
+        if (PRIOR_FACTOR) //外参变量(q,t)与外参初值变量(q0,t0)之间的残差，[t-t0, 2(q0.inv * q)]或者 [t-t0, Log({R0}^-1 * R)]
         {
             for (size_t n = 0; n < NUM_OF_LASER; n++)
             {
@@ -709,18 +715,22 @@ void Estimator::optimizeMap()
         if (POINT_PLANE_FACTOR)
         {
             CHECK_JACOBIAN = 0;
-            for (size_t i = pivot_idx + 1; i < WINDOW_SIZE + 1; i++)
+            for (size_t i = pivot_idx + 1; i < WINDOW_SIZE + 1; i++)//i =3,4
             {
                 std::vector<PointPlaneFeature> &features_frame = surf_map_features_[IDX_REF][i];
                 for (const PointPlaneFeature &feature : features_frame)
                 {
-                    LidarPureOdomPlaneNormFactor *f = new LidarPureOdomPlaneNormFactor(feature.point_, feature.coeffs_, 1.0);
+                    LidarPureOdomPlaneNormFactor *f = new LidarPureOdomPlaneNormFactor(
+                                         feature.point_,  //主雷达在滑窗中对应帧下的surf point
+                                         feature.coeffs_, //该点在主雷达pivot下的local surf map中的correspondances形成的平面方程
+                                         1.0);
+                    
                     ceres::internal::ResidualBlock *res_id = problem.AddResidualBlock(f,
                                                                                       loss_function,
-                                                                                      para_pose_[0],
-                                                                                      para_pose_[i - pivot_idx],
-                                                                                      para_ex_pose_[IDX_REF]);
-                    res_ids_proj.push_back(res_id);
+                                                                                      para_pose_[0], //主雷达pivot pose, Xv[0]
+                                                                                      para_pose_[i - pivot_idx],//主雷达依次在Xv[]中除了pivot帧pose
+                                                                                      para_ex_pose_[IDX_REF]); //主雷达到主雷达的外参，const value
+                    res_ids_proj.push_back(res_id); //对应论文中pure odometry：红色约束
                     if (CHECK_JACOBIAN)
                     {
                         double **tmp_param = new double *[3];
@@ -869,7 +879,6 @@ void Estimator::optimizeMap()
         }
     }
     
-    // *******************************
     common::timing::Timer eval_deg_timer("odom_eval_residual");
     evalResidual(problem,
                  local_param_ids,
@@ -936,7 +945,8 @@ void Estimator::optimizeMap()
                                                                                        std::vector<double *>{para_pose_[0],
                                                                                                              para_pose_[i - pivot_idx],
                                                                                                              para_ex_pose_[IDX_REF]},
-                                                                                       std::vector<int>{0});                        marginalization_info->addResidualBlockInfo(residual_block_info);
+                                                                                       std::vector<int>{0});                        
+                        marginalization_info->addResidualBlockInfo(residual_block_info);
                     }
                 }
 
@@ -1051,14 +1061,13 @@ void Estimator::optimizeMap()
         //! calculate the residuals and jacobian of all ResidualBlockInfo over the marginalized parameter blocks,
         //! for next iteration, the linearization posize_t is assured and fixed
         //! adjust the memory of H and b to implement the Schur complement
-        // TicToc t_pre_margin;
+       
         marginalization_info->preMarginalize(); // add parameter block given residual info
-        // printf("pre marginalization: %fms\n", t_pre_margin.toc());
+        
 
-        // TicToc t_margin;
         // marginalize some states and keep the remaining states with prior residuals
         marginalization_info->marginalize(); // compute linear residuals and jacobian
-        // printf("marginalization: %fms\n", t_margin.toc());
+        
 
         //! indicate shared memory of parameter blocks except for the dropped state
         std::unordered_map<long, double *> addr_shift;
@@ -1085,35 +1094,34 @@ void Estimator::optimizeMap()
     }
 }
 
-/****************************************************************************************/
 void Estimator::buildCalibMap()
 {
     common::timing::Timer build_map_timer("odom_build_calib_map");
     int pivot_idx = WINDOW_SIZE - OPT_WINDOW_SIZE;
-    Pose pose_pivot(Qs_[pivot_idx], Ts_[pivot_idx]);
-
+    Pose pose_pivot(Qs_[pivot_idx], Ts_[pivot_idx]); //pivot pose: Xv[0] //TODO(jxl): 好像跟作者论文中pivot的位置不一样
     // build the whole local map using all poses except the newest pose
     surf_points_local_map_.clear();
     surf_points_local_map_.resize(NUM_OF_LASER);
     surf_points_local_map_filtered_.clear();
-    surf_points_local_map_filtered_.resize(NUM_OF_LASER);
+    surf_points_local_map_filtered_.resize(NUM_OF_LASER); //surf_points_local_map_[n]: n号雷达在主雷达pivot下的local surf map
     corner_points_local_map_.clear(); 
     corner_points_local_map_.resize(NUM_OF_LASER);
     corner_points_local_map_filtered_.clear(); 
-    corner_points_local_map_filtered_.resize(NUM_OF_LASER);
+    corner_points_local_map_filtered_.resize(NUM_OF_LASER);//corner_points_local_map_[n]: n号雷达在主雷达pivot下的local corner map
 
     // #pragma omp parallel for num_threads(NUM_OF_LASER)
     for (size_t n = 0; n < NUM_OF_LASER; n++)
     {
         Pose pose_ext = Pose(qbl_[n], tbl_[n]);
-        for (size_t i = 0; i < WINDOW_SIZE + 1; i++)
+        for (size_t i = 0; i < WINDOW_SIZE + 1; i++)//i=0,1,2,3,4
         {
             Pose pose_i(Qs_[i], Ts_[i]);
-            pose_local_[n][i] = Pose(pose_pivot.T_.inverse() * pose_i.T_ * pose_ext.T_);
+            pose_local_[n][i] = Pose(pose_pivot.T_.inverse() * pose_i.T_ * pose_ext.T_); //主雷达pivot到各雷达n(包括自己)的变换
             PointICloud surf_points_trans, corner_points_trans;
             if (i == WINDOW_SIZE) continue;
             // if ((n != IDX_REF) && (i > pivot_idx)) continue;
-
+            
+            //TODO(jxl): 感觉应该为[n][i]
             pcl::transformPointCloud(surf_points_stack_[IDX_REF][i], surf_points_trans, pose_local_[IDX_REF][i].T_.cast<float>());
             // for (auto &p: surf_points_trans.points) p.intensity = i;
             surf_points_local_map_[n] += surf_points_trans;
@@ -1150,23 +1158,23 @@ void Estimator::buildCalibMap()
         // if (calib_converge_[n]) continue;
         kdtree_surf_points_local_map->setInputCloud(boost::make_shared<PointICloud>(surf_points_local_map_filtered_[n]));
         kdtree_corner_points_local_map->setInputCloud(boost::make_shared<PointICloud>(corner_points_local_map_filtered_[n]));
-        for (size_t i = pivot_idx; i < WINDOW_SIZE + 1; i++)
+        for (size_t i = pivot_idx; i < WINDOW_SIZE + 1; i++)//i=2,3,4
         {
             if (((n == IDX_REF) && (i == pivot_idx))
              || ((n != IDX_REF) && (i != pivot_idx))) continue;
             int n_neigh = (n == IDX_REF ? 5:10);
-            f_extract_.matchSurfFromMap(kdtree_surf_points_local_map,
-                                        surf_points_local_map_filtered_[n],
-                                        surf_points_stack_[n][i],
-                                        pose_local_[n][i],
-                                        surf_map_features_[n][i],
-                                        n_neigh,
-                                        true);
-            f_extract_.matchCornerFromMap(kdtree_corner_points_local_map,
+            f_extract_.matchSurfFromMap(kdtree_surf_points_local_map, //n号雷达在主雷达pivot下的local surf map kdtree
+                                        surf_points_local_map_filtered_[n], //n号雷达在主雷达pivot下的local surf map
+                                        surf_points_stack_[n][i], //n号雷达在i帧下的surf points
+                                        pose_local_[n][i], //主雷达pivot到各雷达n(包括自己)的变换
+                                        surf_map_features_[n][i], //[out]：在“n号雷达在主雷达pivot下的local surf map”中找“n号雷达在i帧下的surf points”的correspondances
+                                        n_neigh, //在local map kdtree中找最近点的个数，要对它们构成的cov valid分析
+                                        true); //FOV检测
+            f_extract_.matchCornerFromMap(kdtree_corner_points_local_map, //类似
                                           corner_points_local_map_filtered_[n],
                                           corner_points_stack_[n][i],
                                           pose_local_[n][i],
-                                          corner_map_features_[n][i],
+                                          corner_map_features_[n][i],//[out]
                                           n_neigh,
                                           true);
         }
@@ -1177,7 +1185,7 @@ void Estimator::buildCalibMap()
     // if (PCL_VIEWER) visualizePCL();
 }
 
-/****************************************************************************************/
+
 void Estimator::buildLocalMap()
 {
     common::timing::Timer build_map_timer("odom_build_local_map");
@@ -1559,8 +1567,8 @@ void Estimator::slideWindow()
 
 void Estimator::vector2Double()
 {
-    int pivot_idx = WINDOW_SIZE - OPT_WINDOW_SIZE;
-    for (size_t i = pivot_idx; i < WINDOW_SIZE + 1; i++)
+    int pivot_idx = WINDOW_SIZE - OPT_WINDOW_SIZE; //2=4-2
+    for (size_t i = pivot_idx; i < WINDOW_SIZE + 1; i++)//i = 2,3,4
     {
         para_pose_[i - pivot_idx][0] = Ts_[i](0);
         para_pose_[i - pivot_idx][1] = Ts_[i](1);
@@ -1575,7 +1583,7 @@ void Estimator::vector2Double()
         para_ex_pose_[i][0] = tbl_[i](0);
         para_ex_pose_[i][1] = tbl_[i](1);
         para_ex_pose_[i][2] = tbl_[i](2);
-        para_ex_pose_[i][3] = qbl_[i].x();
+        para_ex_pose_[i][3] = qbl_[i].x(); //TODO(jxl): m-loam的四元数定义为[qx, qy, qz, qw], JPL惯例, 和作者邮件已确认
         para_ex_pose_[i][4] = qbl_[i].y();
         para_ex_pose_[i][5] = qbl_[i].z();
         para_ex_pose_[i][6] = qbl_[i].w();

@@ -113,7 +113,8 @@ extern int N_CALIB;
 extern float ODOM_GF_RATIO;
 
 extern int SKIP_NUM_ODOM_PUB;
-extern int LM_OPT_ENABLE;
+// extern int LM_OPT_ENABLE; //default 
+extern int LM_OPT_ENABLE = 1; //TODO(jxl): set default value
 
 // mapping
 extern float MAP_CORNER_RES;
@@ -165,11 +166,11 @@ class PointPlaneFeature
 public:
     PointPlaneFeature() : idx_(0), laser_idx_(0), type_('n') {}
     size_t idx_; //在k+1帧feature points中的index。
-    size_t laser_idx_; //计算前端里程计不用，在后端中使用。
+    size_t laser_idx_; //属于多少线束号，滑窗local map和后端使用
     Eigen::Vector3d point_; //在k+1帧feature points中的坐标, point i。    p_sel = R_k_k+1 * i + t_k_k+1， 然后在k帧feature kd-tree points中找最近邻points
     Eigen::VectorXd coeffs_; //corner correspondace(i: j, l)； surf correspondace(i: j, l, m)平面方程系数；
     Eigen::MatrixXd jaco_;
-    char type_;
+    char type_; //surf point为‘s’, corner point为‘c’，滑窗local map和后端使用
 
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 };

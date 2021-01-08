@@ -173,7 +173,7 @@ class Estimator
     CircularBuffer<std_msgs::Header> Header_;
 
     std::vector<CircularBuffer<common::PointICloud> > surf_points_stack_, corner_points_stack_; 
-    //2个，分别表示左右两个雷达; 每个对象 WINDOW_SIZE + 1大小，保存窗口中对应帧raw feature points(没有畸变的)的less surf和less corner
+    //2个，分别表示左右两个雷达; 每个对象 WINDOW_SIZE + 1大小，保存窗口中对应帧raw feature points(没有去畸变的)的less surf和less corner
 
     std::vector<CircularBuffer<int> > surf_points_stack_size_, corner_points_stack_size_;
     //2个，分别表示左右两个雷达；每个对象 WINDOW_SIZE + 1大小,保存窗口中对应帧less surf和less corner点的个数
@@ -182,7 +182,7 @@ class Estimator
 
     std::vector<common::PointICloud> surf_points_local_map_, surf_points_local_map_filtered_; //2个
     std::vector<common::PointICloud> surf_points_pivot_map_;
-    std::vector<common::PointICloud> corner_points_local_map_, corner_points_local_map_filtered_;
+    std::vector<common::PointICloud> corner_points_local_map_, corner_points_local_map_filtered_; //2个
     std::vector<common::PointICloud> corner_points_pivot_map_;
 
     std::vector<std::vector<Pose> > pose_local_; //2个， 每个对象 WINDOW_SIZE + 1大小
@@ -201,15 +201,15 @@ class Estimator
 
     pair<double, std::vector<cloudFeature> > prev_feature_, cur_feature_; //k, k+1帧左右雷达features
 
-    std::vector<std::vector<std::vector<PointPlaneFeature> > > surf_map_features_, corner_map_features_;
+    std::vector<std::vector<std::vector<PointPlaneFeature> > > surf_map_features_, corner_map_features_;//2个，每个对象WINDOW_SIZE + 1大小
     std::vector<std::vector<PointPlaneFeature> > cumu_surf_map_features_, cumu_corner_map_features_; //2个
     size_t cumu_surf_feature_cnt_, cumu_corner_feature_cnt_;
 
     std::vector<std::vector<std::vector<size_t> > > sel_surf_feature_idx_, sel_corner_feature_idx_;
 
-    double **para_pose_{}; //OPT_WINDOW_SIZE + 1, 
-    double **para_ex_pose_{}; //2个
-    double *para_td_{}; //2个
+    double **para_pose_{}; //OPT_WINDOW_SIZE + 1, Xv。每个位姿的顺序是[tx, ty, tz, qx, qy, qz, qw]
+    double **para_ex_pose_{}; //2个, Xe
+    double *para_td_{}; //2个, time offset
 
     Eigen::VectorXd eig_thre_; //大小：OPT_WINDOW_SIZE + 1 + 2
     std::vector<double> log_lambda_;

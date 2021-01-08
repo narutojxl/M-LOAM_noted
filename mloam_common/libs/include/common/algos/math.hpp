@@ -86,6 +86,7 @@ namespace common
         return m;
     }
 
+
     template<typename Derived>
     inline Eigen::Matrix<typename Derived::Scalar, 4, 4> RightQuatMatrix(const Eigen::QuaternionBase<Derived> &p)
     {

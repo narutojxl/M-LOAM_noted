@@ -14,7 +14,7 @@
 #include "parameters.h"
 
 // int MLOAM_RESULT_SAVE; //default
-int MLOAM_RESULT_SAVE = 1; //jxl for save result
+int MLOAM_RESULT_SAVE = 1; //TODO(jxl): for save result
 
 std::string OUTPUT_FOLDER;
 std::string MLOAM_ODOM_PATH;
