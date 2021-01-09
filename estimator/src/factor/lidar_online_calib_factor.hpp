@@ -27,19 +27,19 @@ public:
 	LidarOnlineCalibPlaneNormFactor(const Eigen::Vector3d &point,
 									const Eigen::Vector4d &coeff,
 									const double &sqrt_info = 1.0)
-		: point_(point),
-		  coeff_(coeff),
+		: point_(point), //n雷达在pivot帧下的点
+		  coeff_(coeff), //n雷达在pivot帧下的点,在自己local map下的correspondances形成的平面方程；
 		  sqrt_info_(sqrt_info) {}
 
 	// TODO: jacobian derivation
 	bool Evaluate(double const *const *param, double *residuals, double **jacobians) const
 	{
-		Eigen::Quaterniond Q_ext(param[0][6], param[0][3], param[0][4], param[0][5]);
+		Eigen::Quaterniond Q_ext(param[0][6], param[0][3], param[0][4], param[0][5]); //主雷达到n雷达的外参
 		Eigen::Vector3d t_ext(param[0][0], param[0][1], param[0][2]);
 
 		Eigen::Vector3d w(coeff_(0), coeff_(1), coeff_(2));
 		double d = coeff_(3);
-		double r = w.dot(Q_ext * point_ + t_ext) + d;
+		double r = w.dot(Q_ext * point_ + t_ext) + d; //Q_ext * point_ + t_ext: 把n雷达在pivot帧下的点转换到在主雷达pivot下
 		residuals[0] = sqrt_info_ * r;
 
 		if (jacobians)
@@ -51,7 +51,7 @@ public:
                 Eigen::Matrix<double, 1, 6> jaco_ext;
 
                 jaco_ext.leftCols<3>() = w.transpose();
-				jaco_ext.rightCols<3>() = -w.transpose() * Rext * Utility::skewSymmetric(point_);
+				jaco_ext.rightCols<3>() = -w.transpose() * Rext * Utility::skewSymmetric(point_); //和作者的推导一致
 
 				jacobian_pose_ext.setZero();
                 jacobian_pose_ext.leftCols<6>() = sqrt_info_ * jaco_ext;
@@ -155,7 +155,7 @@ public:
 
                 Eigen::Matrix<double, 1, 3> eta = 1.0 / de.norm() * nu.normalized().transpose();
                 jaco.leftCols<3>() = -eta * Utility::skewSymmetric(lpa - lpb);
-                jaco.rightCols<3>() = eta * Utility::skewSymmetric(lpa - lpb) * R * Utility::skewSymmetric(point_);
+                jaco.rightCols<3>() = eta * Utility::skewSymmetric(lpa - lpb) * R * Utility::skewSymmetric(point_); //和作者的推导一致
 
                 jacobian_pose.setZero();
                 jacobian_pose.leftCols<6>() = sqrt_info_ * jaco;

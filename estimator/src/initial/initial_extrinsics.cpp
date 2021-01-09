@@ -43,7 +43,7 @@ void InitialExtrinsics::clearState()
 
 void InitialExtrinsics::setParameter()
 {
-    for (size_t i = 0; i < NUM_OF_LASER; i++) calib_ext_.push_back(Pose(QBL[i], TBL[i], TDBL[i]));
+    for (size_t i = 0; i < NUM_OF_LASER; i++) calib_ext_.push_back(Pose(QBL[i], TBL[i], TDBL[i])); //q=I, t=0, t_offset=0
 
     cov_rot_state_ = std::vector<bool>(NUM_OF_LASER, false);
     cov_rot_state_[IDX_REF] = true; //IDX_REF: 0
@@ -76,7 +76,7 @@ bool InitialExtrinsics::setCovTranslation(const size_t &idx)
     if (std::find(cov_pos_state_.begin(), cov_pos_state_.end(), false) == cov_pos_state_.end()) full_cov_pos_state_ = true;
 }
 
-bool InitialExtrinsics::addPose(const std::vector<Pose> &pose_laser)
+bool InitialExtrinsics::addPose(const std::vector<Pose> &pose_laser) //pose_laser[n]: n号雷达prev scan到curr scan的变换
 {
     assert(pose_laser.size() == NUM_OF_LASER);
     bool b_check = true;
@@ -112,7 +112,7 @@ bool InitialExtrinsics::checkScrewMotion(const Pose &pose_ref, const Pose &pose_
     // printf("r_dis: %f, t_dis: %f \n", r_dis, t_dis);
     // v_rd_.push_back(r_dis);
     // v_td_.push_back(t_dis);
-    return (r_dis < EPSILON_R) && (t_dis < EPSILON_T);
+    return (r_dis < EPSILON_R) && (t_dis < EPSILON_T); //const value
 }
 
 bool InitialExtrinsics::calibExRotation(const size_t &idx_ref, const size_t &idx_data, Pose &calib_result)

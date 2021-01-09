@@ -410,7 +410,7 @@ void Estimator::undistortMeasurements(const std::vector<Pose> &pose_undist)
             // for (PointI &point : cur_feature_.second[n]["corner_points_sharp"]) TransformToEnd(point, point, pose_undist, true, SCAN_PERIOD);
             // for (PointI &point : cur_feature_.second[n]["surf_points_flat"]) TransformToEnd(point, point, pose_undist, true, SCAN_PERIOD);
 
-            //把当前帧的feature points转换到当前帧的end下  //TODO(jxl):为何不是pose_undist[n]
+            //把当前帧的feature points转换到当前帧的end下  //TODO(jxl): 为何不是pose_undist[n]
             for (PointI &point : cur_feature_.second[n]["corner_points_less_sharp"]) TransformToEnd(point, point, pose_undist[IDX_REF], true, SCAN_PERIOD);
             for (PointI &point : cur_feature_.second[n]["surf_points_less_flat"]) TransformToEnd(point, point, pose_undist[IDX_REF], true, SCAN_PERIOD);
 			for (PointI &point : cur_feature_.second[n]["laser_cloud"]) TransformToEnd(point, point, pose_undist[IDX_REF], true, SCAN_PERIOD);
@@ -429,19 +429,21 @@ void Estimator::process()
         common::timing::Timer tracker_timer("odom_tracker");
         // -----------------
         // tracker and initialization
-        if (ESTIMATE_EXTRINSIC == 2)
+        if (ESTIMATE_EXTRINSIC == 2) //外参的初值还没有计算
         {
             #pragma omp parallel for num_threads(NUM_OF_LASER)
             for (size_t n = 0; n < NUM_OF_LASER; n++)
             {
                 cloudFeature &cur_cloud_feature = cur_feature_.second[n];
                 cloudFeature &prev_cloud_feature = prev_feature_.second[n];
-                pose_rlt_[n] = lidar_tracker_.trackCloud(prev_cloud_feature, cur_cloud_feature, pose_rlt_[n]);
+                pose_rlt_[n] = lidar_tracker_.trackCloud(prev_cloud_feature, cur_cloud_feature, pose_rlt_[n]); 
+                //在n雷达之前相邻两帧delta_T基础上，用n雷达curr和prev相邻两帧scan(点到平面，点到直线)匹配，计算delta_T
+
                 pose_laser_cur_[n] = pose_laser_cur_[n] * pose_rlt_[n];
             }
-            printf("lidarTracker: %fms\n", tracker_timer.Stop() * 1000);
-            for (size_t n = 0; n < NUM_OF_LASER; n++)
-                std::cout << "laser_" << n << ", pose_rlt: " << pose_rlt_[n] << std::endl;
+            // printf("lidarTracker: %fms\n", tracker_timer.Stop() * 1000);
+            // for (size_t n = 0; n < NUM_OF_LASER; n++)
+            //     std::cout << "laser_" << n << ", pose_rlt: " << pose_rlt_[n] << std::endl;
 
             // initialize extrinsics
             printf("calibrating extrinsic param, sufficient movement is needed\n");
@@ -694,7 +696,7 @@ void Estimator::optimizeMap()
     if (ESTIMATE_EXTRINSIC == 1)
     {
         buildCalibMap(); //1. 构建n号雷达在主雷达pivot下的local surf, corner map; 
-                         //2. 在“n号雷达的local surf, corner map”中找“n号雷达在滑窗中每一帧下points”的correspondances
+                         //2. 构建“n号雷达在滑窗中每一帧下points” 在 “n号雷达的local surf, corner map”中的correspondances
         //主雷达local map:   主雷达滑窗内所有帧转到主雷达pivot帧下形成的local map
         //副雷达m local map：副雷达m滑窗内所有帧转到主雷达pivot帧下形成的local map
         //副雷达n local map：副雷达n滑窗内所有帧转到主雷达pivot帧下形成的local map
@@ -728,9 +730,9 @@ void Estimator::optimizeMap()
                     ceres::internal::ResidualBlock *res_id = problem.AddResidualBlock(f,
                                                                                       loss_function,
                                                                                       para_pose_[0], //主雷达pivot pose, Xv[0]
-                                                                                      para_pose_[i - pivot_idx],//主雷达依次在Xv[]中除了pivot帧pose
+                                                                                      para_pose_[i - pivot_idx], //主雷达依次在Xv[]中除了pivot帧pose
                                                                                       para_ex_pose_[IDX_REF]); //主雷达到主雷达的外参，const value
-                    res_ids_proj.push_back(res_id); //对应论文中pure odometry：红色约束
+                    res_ids_proj.push_back(res_id); //对应论文中pure odometry：见笔记红色约束
                     if (CHECK_JACOBIAN)
                     {
                         double **tmp_param = new double *[3];
@@ -745,7 +747,7 @@ void Estimator::optimizeMap()
 
             for (size_t n = 0; n < NUM_OF_LASER; n++) 
             {
-                if (n == IDX_REF) continue;
+                if (n == IDX_REF) continue; //忽略主雷达
                 cumu_surf_map_features_[n].insert(cumu_surf_map_features_[n].end(),
                                                   surf_map_features_[n][pivot_idx].begin(), 
                                                   surf_map_features_[n][pivot_idx].end());
@@ -755,13 +757,16 @@ void Estimator::optimizeMap()
                 std::cout << common::YELLOW << "Start Calibration !" << common::RESET << std::endl;
                 for (size_t n = 0; n < NUM_OF_LASER; n++)
                 {
-                    if (n == IDX_REF) continue;
+                    if (n == IDX_REF) continue; //忽略主雷达
                     for (const PointPlaneFeature &feature : cumu_surf_map_features_[n])
                     {
-                        LidarOnlineCalibPlaneNormFactor *f = new LidarOnlineCalibPlaneNormFactor(feature.point_, feature.coeffs_, 1.0);
+                        LidarOnlineCalibPlaneNormFactor *f = new LidarOnlineCalibPlaneNormFactor(
+                                            feature.point_,  //n雷达在pivot帧下的点 
+                                            feature.coeffs_, //n雷达在pivot帧下的点,在自己local map下的correspondances形成的平面方程；
+                                            1.0);
                         ceres::internal::ResidualBlock *res_id = problem.AddResidualBlock(f,
                                                                                           loss_function,
-                                                                                          para_ex_pose_[n]);
+                                                                                          para_ex_pose_[n]); //主雷达到每个副雷达的外参
                         res_ids_proj.push_back(res_id);
                     }
                 }
@@ -784,16 +789,16 @@ void Estimator::optimizeMap()
                     // ceres::CostFunction *f = LidarPureOdomEdgeFactor::Create(feature.point_, feature.coeffs_, 1.0);
                     ceres::internal::ResidualBlock *res_id = problem.AddResidualBlock(f,
                                                                                       loss_function,
-                                                                                      para_pose_[0],
-                                                                                      para_pose_[i - pivot_idx],
-                                                                                      para_ex_pose_[IDX_REF]);
+                                                                                      para_pose_[0], //主雷达pivot pose, Xv[0]
+                                                                                      para_pose_[i - pivot_idx], //主雷达依次在Xv[]中除了pivot帧pose
+                                                                                      para_ex_pose_[IDX_REF]); //主雷达到主雷达的外参，const value
                     res_ids_proj.push_back(res_id);
                 }
             }            
 
             for (size_t n = 0; n < NUM_OF_LASER; n++) 
             {
-                if (n == IDX_REF) continue;
+                if (n == IDX_REF) continue; //忽略主雷达
                 cumu_corner_map_features_[n].insert(cumu_corner_map_features_[n].end(),
                                                     corner_map_features_[n][pivot_idx].begin(), 
                                                     corner_map_features_[n][pivot_idx].end());
@@ -802,11 +807,14 @@ void Estimator::optimizeMap()
             {
                 for (size_t n = 0; n < NUM_OF_LASER; n++)
                 {
-                    if (n == IDX_REF) continue;
+                    if (n == IDX_REF) continue; //忽略主雷达
                     for (const PointPlaneFeature &feature : cumu_corner_map_features_[n])
                     {
-                        LidarOnlineCalibEdgeFactor *f = new LidarOnlineCalibEdgeFactor(feature.point_, feature.coeffs_, 1.0);
-                        ceres::internal::ResidualBlock *res_id = problem.AddResidualBlock(f, loss_function, para_ex_pose_[n]);
+                        LidarOnlineCalibEdgeFactor *f = new LidarOnlineCalibEdgeFactor(
+                            feature.point_,  //n雷达在pivot帧下的点 
+                            feature.coeffs_, //n雷达在pivot帧下的点,在自己local map下的correspondances
+                            1.0);
+                        ceres::internal::ResidualBlock *res_id = problem.AddResidualBlock(f, loss_function, para_ex_pose_[n]); //主雷达到每个副雷达的外参
                         res_ids_proj.push_back(res_id);
                     }
                 }
@@ -1116,7 +1124,7 @@ void Estimator::buildCalibMap()
         for (size_t i = 0; i < WINDOW_SIZE + 1; i++)//i=0,1,2,3,4
         {
             Pose pose_i(Qs_[i], Ts_[i]);
-            pose_local_[n][i] = Pose(pose_pivot.T_.inverse() * pose_i.T_ * pose_ext.T_); //主雷达pivot到各雷达n(包括自己)的变换
+            pose_local_[n][i] = Pose(pose_pivot.T_.inverse() * pose_i.T_ * pose_ext.T_); //主雷达pivot到各雷达n(包括自己)i帧的变换
             PointICloud surf_points_trans, corner_points_trans;
             if (i == WINDOW_SIZE) continue;
             // if ((n != IDX_REF) && (i > pivot_idx)) continue;

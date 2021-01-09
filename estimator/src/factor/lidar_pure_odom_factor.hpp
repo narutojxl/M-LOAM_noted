@@ -69,6 +69,10 @@ public:
 				jaco_pivot.leftCols<3>() = -w.transpose() * Rp.transpose();
 				jaco_pivot.rightCols<3>() = w.transpose() * (Rp.transpose() *
 															 Utility::skewSymmetric(Ri * Rext * point_ + Ri * t_ext + t_i - t_pivot));
+															//TODO(jxl): 和作者的推导不一致
+															//Utility::skewSymmetric(
+															//	   Rp.transpose() * (Ri * Rext * point_ + Ri * t_ext + t_i - t_pivot)
+															// )
 
                 jacobian_pose_pivot.leftCols<6>() = sqrt_info_ * jaco_pivot;
                 jacobian_pose_pivot.rightCols<1>().setZero();
@@ -82,6 +86,7 @@ public:
 				jaco_i.leftCols<3>() = w.transpose() * Rp.transpose();
 				jaco_i.rightCols<3>() = -w.transpose() * Rp.transpose() *
 										Ri * Utility::skewSymmetric(Rext * point_ + t_ext);
+										//和作者推导的一致
 
                 jacobian_pose_i.leftCols<6>() = sqrt_info_ * jaco_i;
                 jacobian_pose_i.rightCols<1>().setZero();
@@ -94,6 +99,8 @@ public:
 				Eigen::Matrix<double, 1, 6> jaco_ex;
 				jaco_ex.leftCols<3>() = w.transpose() * Rp.transpose() * Ri;
 				jaco_ex.rightCols<3>() = -w.transpose() * Rp.transpose() * Ri * Utility::skewSymmetric(Rext * point_);
+				    //TODO(jxl): 和作者的推导不一致
+					//-w.transpose() * Rp.transpose() * Ri * Utility::skewSymmetric(Rext * point_) * Rext;
 
                 jacobian_pose_ex.leftCols<6>() = sqrt_info_ * jaco_ex;
                 jacobian_pose_ex.rightCols<1>().setZero();
@@ -202,32 +209,33 @@ public:
 	LidarPureOdomEdgeFactor(const Eigen::Vector3d &point,
 							const Eigen::VectorXd &coeff,
 							const double &sqrt_info = 1.0)
-		: point_(point),
-		  coeff_(coeff),
+		: point_(point), //n雷达在i帧下的点
+		  coeff_(coeff), //n雷达在i帧下的点,在自己local map下的correspondances
 		  sqrt_info_(sqrt_info) {}
 
 	// residual = sum(w^(T) * (R * p + t) + d)
 	bool Evaluate(double const *const *param, double *residuals, double **jacobians) const
     {
 		Eigen::Quaterniond Q_pivot(param[0][6], param[0][3], param[0][4], param[0][5]);
-		Eigen::Vector3d t_pivot(param[0][0], param[0][1], param[0][2]);
+		Eigen::Vector3d t_pivot(param[0][0], param[0][1], param[0][2]); //主雷达pivot pose,  Xv[0]
 		Eigen::Quaterniond Q_i(param[1][6], param[1][3], param[1][4], param[1][5]);
-		Eigen::Vector3d t_i(param[1][0], param[1][1], param[1][2]);
+		Eigen::Vector3d t_i(param[1][0], param[1][1], param[1][2]); //主雷达Xv[i], i≠0
 		Eigen::Quaterniond Q_ext(param[2][6], param[2][3], param[2][4], param[2][5]);
-		Eigen::Vector3d t_ext(param[2][0], param[2][1], param[2][2]);
+		Eigen::Vector3d t_ext(param[2][0], param[2][1], param[2][2]); //主雷达到n雷达的外参
 
 		Eigen::Quaterniond Q_pi = Q_pivot.conjugate() * Q_i;
-		Eigen::Vector3d t_pi = Q_pivot.conjugate() * (t_i - t_pivot);
-		Eigen::Quaterniond Q_ext_pi = Q_pi * Q_ext;
-		Eigen::Vector3d t_ext_pi = Q_pi * t_ext + t_pi;
+		Eigen::Vector3d t_pi = Q_pivot.conjugate() * (t_i - t_pivot); //(Q_pi, t_pi): 主雷达pivot帧到主雷达i帧的变换
 
-		Eigen::Vector3d lpa(coeff_(0), coeff_(1), coeff_(2));
-		Eigen::Vector3d lpb(coeff_(3), coeff_(4), coeff_(5));
-		Eigen::Vector3d lp = Q_ext_pi * point_ + t_ext_pi;
+		Eigen::Quaterniond Q_ext_pi = Q_pi * Q_ext;
+		Eigen::Vector3d t_ext_pi = Q_pi * t_ext + t_pi; //(Q_ext_pi, t_ext_pi): 主雷达pivot帧到n雷达i帧的变换
+
+		Eigen::Vector3d lpa(coeff_(0), coeff_(1), coeff_(2)); //pa： corner对应的线correspondances
+		Eigen::Vector3d lpb(coeff_(3), coeff_(4), coeff_(5)); //pb
+		Eigen::Vector3d lp = Q_ext_pi * point_ + t_ext_pi;//lp: p, 把n雷达在i帧下的点转换到主雷达在pivot下的点，即n雷达的local map中
 
         Eigen::Vector3d nu = (lp - lpa).cross(lp - lpb);
         Eigen::Vector3d de = lpa - lpb;
-        residuals[0] = sqrt_info_ * nu.norm() / de.norm();		
+        residuals[0] = sqrt_info_ * nu.norm() / de.norm(); //点到直线的距离	
 
 		// jacobians: 1x21
         if (jacobians)
@@ -239,13 +247,16 @@ public:
 			Eigen::Matrix<double, 1, 3> eta = 1.0 / de.norm() * nu.normalized().transpose();
 			Eigen::Vector3d ba = lp - lpa;
 			Eigen::Vector3d bb = lp - lpb;
+			
+			//和平面特征类似
+		    //把上面中w^T替换为 eta * Utility::skewSymmetric(ba - bb)，剩下的不变
 
             if (jacobians[0])
             {
                 Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor> > jacobian_pose_pivot(jacobians[0]);
 
                 Eigen::Matrix<double, 1, 6> jaco_pivot;
-				jaco_pivot.leftCols<3>() = - eta * Utility::skewSymmetric(ba - bb) * Rp.transpose();
+				jaco_pivot.leftCols<3>() = - eta * Utility::skewSymmetric(ba - bb) * Rp.transpose(); 
 				jaco_pivot.rightCols<3>() = eta * Utility::skewSymmetric(ba - bb) * 
 					Utility::skewSymmetric(Rp.transpose() * (Ri * Rext * point_ + Ri * t_ext + t_i - t_pivot));
 
@@ -274,6 +285,9 @@ public:
 				jaco_ex.leftCols<3>() = eta * Utility::skewSymmetric(ba - bb) * Rp.transpose() * Ri;
 				jaco_ex.rightCols<3>() = - eta * Utility::skewSymmetric(ba - bb) * Rp.transpose() * Ri * 
 					(Rext * Utility::skewSymmetric(point_) + Utility::skewSymmetric(t_ext));
+					//TODO(jxl): 和作者推导的不一致
+					//应该为: - eta * Utility::skewSymmetric(ba - bb) * Rp.transpose() * Ri * 
+					//                   (Rext * Utility::skewSymmetric(point_)
 
 				jacobian_pose_ex.setZero();
                 jacobian_pose_ex.leftCols<6>() = sqrt_info_ * jaco_ex;

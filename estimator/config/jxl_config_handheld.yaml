@@ -118,7 +118,7 @@ distance_sq_threshold: 25  #k+1帧laser转换到k帧laser后，kd-tree查找最�
 nearby_scan: 2.5  #corner correspondace(i: j, l) and surf correspondace(i: j, l, m)所在的线束号与i点所在的线束号不能超过2.5
 
 # movement type
-planar_movement: 0
+planar_movement: 0  #标定时是否在平面运动
 
 # feature corresponding paprameters
 min_match_sq_dis: 1.0 #滑窗中local map kdtree中找对应点(corner and surf correspondance)阈值距离平方

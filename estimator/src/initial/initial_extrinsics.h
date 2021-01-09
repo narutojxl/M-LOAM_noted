@@ -63,7 +63,7 @@ public:
 
 	void decomposeE(cv::Mat E, cv::Mat_<double> &R1, cv::Mat_<double> &R2, cv::Mat_<double> &t1, cv::Mat_<double> &t2);
 
-	std::vector<Pose> calib_ext_;
+	std::vector<Pose> calib_ext_; //主雷达到各个雷达的外参
 
 	std::vector<double> v_rd_;
 	std::vector<double> v_td_;
@@ -75,7 +75,7 @@ public:
 
 	std::priority_queue<std::pair<size_t, std::vector<Pose> >, 
 						std::vector<std::pair<size_t, std::vector<Pose> > >, rotCmp> pq_pose_;
-	std::vector<std::vector<Pose> > v_pose_;
+	std::vector<std::vector<Pose> > v_pose_; //v_pose_[k][]: k帧时刻，所有雷达k-1帧到k帧的delta_T
 
 						
 	// v_pose_[idx_ref][indices_[idx_data][i]], v_pose_[idx_data][indices_[idx_data][i]] as the screw motion pair

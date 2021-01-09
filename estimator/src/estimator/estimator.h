@@ -180,9 +180,14 @@ class Estimator
 
     pcl::VoxelGrid<PointI> down_size_filter_corner_, down_size_filter_surf_;
 
-    std::vector<common::PointICloud> surf_points_local_map_, surf_points_local_map_filtered_; //2个
+    std::vector<common::PointICloud> surf_points_local_map_, surf_points_local_map_filtered_; //2个， 
+    //surf_points_local_map_[n]: n号雷达在主雷达pivot下的local surf map， 把n号雷达在滑窗内的所有帧surf points都转换到主雷达pivot帧下
+
     std::vector<common::PointICloud> surf_points_pivot_map_;
-    std::vector<common::PointICloud> corner_points_local_map_, corner_points_local_map_filtered_; //2个
+
+    std::vector<common::PointICloud> corner_points_local_map_, corner_points_local_map_filtered_; //2个，
+    //corner_points_local_map_[n]: n号雷达在主雷达pivot下的local corner map, 把n号雷达在滑窗内的所有帧corner points都转换到主雷达pivot帧下
+
     std::vector<common::PointICloud> corner_points_pivot_map_;
 
     std::vector<std::vector<Pose> > pose_local_; //2个， 每个对象 WINDOW_SIZE + 1大小
@@ -202,7 +207,13 @@ class Estimator
     pair<double, std::vector<cloudFeature> > prev_feature_, cur_feature_; //k, k+1帧左右雷达features
 
     std::vector<std::vector<std::vector<PointPlaneFeature> > > surf_map_features_, corner_map_features_;//2个，每个对象WINDOW_SIZE + 1大小
-    std::vector<std::vector<PointPlaneFeature> > cumu_surf_map_features_, cumu_corner_map_features_; //2个
+    //surf_map_features_[n][i]: “n号雷达在滑窗中i帧下surf points”在“n号雷达的local surf map”中的correspondances.这些features是在local map下的points
+    //corner_map_features_[n][i]: 同理
+
+    std::vector<std::vector<PointPlaneFeature> > cumu_surf_map_features_, cumu_corner_map_features_; //2个， 每个雷达在pivot帧下的points
+    //cumu_surf_map_features_[n]: n号雷达在pivot帧下的surf points在n号雷达的local surf map中的correspondances.
+    //cumu_corner_map_features_[n]: 同理
+
     size_t cumu_surf_feature_cnt_, cumu_corner_feature_cnt_;
 
     std::vector<std::vector<std::vector<size_t> > > sel_surf_feature_idx_, sel_corner_feature_idx_;
