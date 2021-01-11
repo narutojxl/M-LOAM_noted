@@ -153,7 +153,7 @@ void FeatureExtract::matchCornerFromScan(const typename pcl::KdTreeFLANN<PointTy
         // not consider distortion
         TransformToStart(cloud_data.points[i], point_sel, pose_local, false, SCAN_PERIOD); 
         //先把当前帧的points转换到当前帧的start下  
-        //TODO(jxl): 应该为true？
+        //TODO(jxl): 或许应该为true, 见作者回复 https://github.com/gogojjh/M-LOAM/issues/6
 
         kdtree_corner_from_scan->nearestKSearch(point_sel, 1, point_search_ind, point_search_sqdis);
 

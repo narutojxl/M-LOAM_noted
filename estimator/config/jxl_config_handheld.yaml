@@ -142,7 +142,7 @@ lambda_thre_calib: 70
 n_calib: 25
 
 # good feature
-odom_gf_ratio: 0.8
+odom_gf_ratio: 0.8  #好的特征点的比例
 
 skip_num_odom_pub: 2
 

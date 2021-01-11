@@ -61,8 +61,9 @@ public:
                 jaco_prior.setIdentity();
 
                 jaco_prior.bottomRightCorner<3, 3>() = LeftQuatMatrix(Q.inverse() * rot_).topLeftCorner<3, 3>();
-                //jxl: https://github.com/hyye/lio-mapping/issues/69
-                //TODO(jxl): 和作者邮件沟通后，确认mloam和lio-mapping一样，四元数都是JPL下的惯例
+                //TODO(jxl): https://github.com/hyye/lio-mapping/issues/69
+                //和作者邮件沟通后，确认mloam和lio-mapping一样，四元数都是JPL下的惯例
+                //作者的四元数定义是JPL, 此处是JPL下的qL matrix，差一个减号. 跟作者邮件沟通说这的加号是对的，暂时还未完全理解
 
                 // FIXME: info
                 jacobian_prior.setZero();

@@ -115,7 +115,10 @@ bool InitialExtrinsics::checkScrewMotion(const Pose &pose_ref, const Pose &pose_
     return (r_dis < EPSILON_R) && (t_dis < EPSILON_T); //const value
 }
 
-bool InitialExtrinsics::calibExRotation(const size_t &idx_ref, const size_t &idx_data, Pose &calib_result)
+
+bool InitialExtrinsics::calibExRotation(const size_t &idx_ref,  //0
+                                        const size_t &idx_data, //1
+                                        Pose &calib_result)//[out]
 {
     assert(idx_ref < NUM_OF_LASER);
     assert(idx_data < NUM_OF_LASER);
@@ -125,8 +128,8 @@ bool InitialExtrinsics::calibExRotation(const size_t &idx_ref, const size_t &idx
     const size_t indice = pose_laser_add_.first;
     const std::vector<Pose> &pose_laser = pose_laser_add_.second;
     {
-        const Pose &pose_ref = pose_laser[idx_ref];
-        const Pose &pose_data = pose_laser[idx_data];
+        const Pose &pose_ref = pose_laser[idx_ref];    //主雷达prev到curr的delta_T
+        const Pose &pose_data = pose_laser[idx_data]; //副雷达prev到curr的delta_T
 
         Eigen::Quaterniond r1 = pose_ref.q_;
         Eigen::Quaterniond r2 = calib_ext_[idx_data].q_ * pose_data.q_ * calib_ext_[idx_data].inverse().q_;
@@ -136,14 +139,17 @@ bool InitialExtrinsics::calibExRotation(const size_t &idx_ref, const size_t &idx
         Eigen::Matrix4d L, R; // Q1 and Q2 to represent the quaternion representation
         double w = pose_ref.q_.w();
         Eigen::Vector3d q = pose_ref.q_.vec();
-        L.block<3, 3>(0, 0) = w * Eigen::Matrix3d::Identity() + Utility::skewSymmetric(q);
+        L.block<3, 3>(0, 0) = w * Eigen::Matrix3d::Identity() + Utility::skewSymmetric(q); 
         L.block<3, 1>(0, 3) = q;
-        L.block<1, 3>(3, 0) = -q.transpose();
+        L.block<1, 3>(3, 0) = -q.transpose(); 
         L(3, 3) = w;
+        //TODO(jxl): https://github.com/hyye/lio-mapping/issues/69
+        //和作者邮件沟通后，确认mloam和lio-mapping一样，四元数都是JPL下的惯例
+        //作者的四元数定义是JPL, 此处是JPL下的qL matrix，差一个减号. 跟作者邮件沟通说这的加号是对的，暂时还未完全理解
 
         w = pose_data.q_.w();
         q = pose_data.q_.vec();
-        R.block<3, 3>(0, 0) = w * Eigen::Matrix3d::Identity() - Utility::skewSymmetric(q);
+        R.block<3, 3>(0, 0) = w * Eigen::Matrix3d::Identity() - Utility::skewSymmetric(q); //TODO(jxl): 应该为加号？
         R.block<3, 1>(0, 3) = q;
         R.block<1, 3>(3, 0) = -q.transpose();
         R(3, 3) = w;
@@ -196,7 +202,7 @@ bool InitialExtrinsics::calibExRotation(const size_t &idx_ref, const size_t &idx
 
     Eigen::Vector3d rot_cov = svd.singularValues().tail<3>(); // singular value
     v_rot_cov_[idx_data].push_back(rot_cov(1));
-    printf("------------------- pose_cnt:%lu, ref:%d, data:%d, rot_cov:%f\n", pq_pose_.size(), idx_ref, idx_data, rot_cov(1));
+    // printf("------------------- pose_cnt:%lu, ref:%d, data:%d, rot_cov:%f\n", pq_pose_.size(), idx_ref, idx_data, rot_cov(1));
     if (rot_cov(1) > rot_cov_thre_) // converage, the second smallest sigular value
     {
         calib_result = calib_ext_[idx_data];
@@ -239,7 +245,7 @@ bool InitialExtrinsics::calibExRotation(const size_t &idx_ref, const size_t &idx
     }
 }
 
-bool InitialExtrinsics::calibExTranslation(const size_t &idx_ref, const size_t &idx_data, Pose &calib_result)
+bool InitialExtrinsics::calibExTranslation(const size_t &idx_ref, const size_t &idx_data, Pose &calib_result) //0, 1, [out]
 {
     assert(idx_ref < NUM_OF_LASER);
     assert(idx_data < NUM_OF_LASER);
@@ -258,7 +264,7 @@ bool InitialExtrinsics::calibExTranslation(const size_t &idx_ref, const size_t &
 bool InitialExtrinsics::calibExTranslationNonPlanar(const size_t &idx_ref, const size_t &idx_data)
 {
     const Eigen::Quaterniond &q_zyx = calib_ext_[idx_data].q_;
-    Eigen::MatrixXd A = Eigen::MatrixXd::Zero(v_pose_.size() * 3, 3);
+    Eigen::MatrixXd A = Eigen::MatrixXd::Zero(v_pose_.size() * 3, 3); //paper equ.18
     Eigen::MatrixXd b = Eigen::MatrixXd::Zero(v_pose_.size() * 3, 1);
     for (size_t i = 0; i < v_pose_.size(); i++)
     {
@@ -284,8 +290,8 @@ bool InitialExtrinsics::calibExTranslationPlanar(const size_t &idx_ref, const si
     Eigen::MatrixXd w = Eigen::MatrixXd::Zero(v_pose_.size() * 2, 1);
     for (size_t i = 0; i < v_pose_.size(); i++)
     {
-        const Pose &pose_ref = v_pose_[i][idx_ref];
-        const Pose &pose_data = v_pose_[i][idx_data];
+        const Pose &pose_ref = v_pose_[i][idx_ref]; //i帧时刻，主雷达i-1帧到i帧的delta_T
+        const Pose &pose_data = v_pose_[i][idx_data]; //i帧时刻，副雷达i-1帧到i帧的delta_T
         AngleAxisd ang_axis_ref(pose_ref.q_);
         AngleAxisd ang_axis_data(pose_data.q_);
         double t_dis = abs(pose_ref.t_.dot(ang_axis_ref.axis()) - pose_data.t_.dot(ang_axis_data.axis()));

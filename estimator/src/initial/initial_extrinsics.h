@@ -35,7 +35,7 @@ struct rotCmp
 {
 	bool operator()(const std::pair<size_t, std::vector<Pose> > &pose_r, const std::pair<size_t, std::vector<Pose> > &pose_l)
 	{
-		return (pose_l.second[0].q_.w() > pose_r.second[0].q_.w()); 
+		return (pose_l.second[0].q_.w() > pose_r.second[0].q_.w());  //主雷达q.w比较
 	}
 };
 
@@ -69,21 +69,22 @@ public:
 	std::vector<double> v_td_;
 
 	std::vector<std::vector<double> > v_rot_cov_, v_pos_cov_;
-	std::vector<bool> cov_rot_state_, cov_pos_state_;
-	bool full_cov_rot_state_, full_cov_pos_state_;
+	std::vector<bool> cov_rot_state_, cov_pos_state_; //主雷达到n雷达的旋转是否标定收敛， 到n雷达的平移是否标定收敛
+	bool full_cov_rot_state_, full_cov_pos_state_; //是否主雷达到所有副雷达的旋转标定收敛， 到所有副雷达的平移标定收敛
 	double rot_cov_thre_;
 
-	std::priority_queue<std::pair<size_t, std::vector<Pose> >, 
-						std::vector<std::pair<size_t, std::vector<Pose> > >, rotCmp> pq_pose_;
+	std::priority_queue<std::pair<size_t, std::vector<Pose> >,  //元素：pair类型，<size_t = k，std::vector<Pose>>, 和v_pose_[k]一一对应
+						std::vector<std::pair<size_t, std::vector<Pose> > >, //容器：std::vector
+						rotCmp> //比较函数
+						pq_pose_;
 	std::vector<std::vector<Pose> > v_pose_; //v_pose_[k][]: k帧时刻，所有雷达k-1帧到k帧的delta_T
-
-						
+		
 	// v_pose_[idx_ref][indices_[idx_data][i]], v_pose_[idx_data][indices_[idx_data][i]] as the screw motion pair
 	std::vector<std::vector<int> > indices_;
 
 	size_t frame_cnt_, pose_cnt_;
 
-	std::vector<Eigen::MatrixXd> Q_; //eq16. Q 
+	std::vector<Eigen::MatrixXd> Q_; //eq16. Q，大小为2，每个矩阵4K *4
 
 	std::pair<size_t, std::vector<Pose> > pose_laser_add_;
 

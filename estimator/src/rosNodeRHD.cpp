@@ -210,7 +210,9 @@ int main(int argc, char **argv)
     std::vector<LidarSubType *> sub_lidar(2);
     NUM_OF_LASER = NUM_OF_LASER < 2 ? NUM_OF_LASER : 2; //TODO(jxl): 雷达数量超过2个时强制为2个雷达
     for (size_t i = 0; i < NUM_OF_LASER; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[i], 1);
-    // for (size_t i = NUM_OF_LASER; i < 2; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[0], 1);//TODO(jxl): 该语句好像是多余的
+    for (size_t i = NUM_OF_LASER; i < 2; i++) sub_lidar[i] = new LidarSubType(nh, CLOUD_TOPIC[0], 1);
+     //不是多余的，当雷达个数为1时，阻止下一行语句segment，使得sub_lidar[1]有效。
+
     message_filters::Synchronizer<LidarSyncPolicy> *lidar_synchronizer =
         new message_filters::Synchronizer<LidarSyncPolicy>(
             LidarSyncPolicy(10), *sub_lidar[0], *sub_lidar[1]);

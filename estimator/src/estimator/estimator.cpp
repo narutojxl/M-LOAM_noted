@@ -410,7 +410,7 @@ void Estimator::undistortMeasurements(const std::vector<Pose> &pose_undist)
             // for (PointI &point : cur_feature_.second[n]["corner_points_sharp"]) TransformToEnd(point, point, pose_undist, true, SCAN_PERIOD);
             // for (PointI &point : cur_feature_.second[n]["surf_points_flat"]) TransformToEnd(point, point, pose_undist, true, SCAN_PERIOD);
 
-            //把当前帧的feature points转换到当前帧的end下  //TODO(jxl): 为何不是pose_undist[n]
+            //把当前帧的feature points转换到当前帧的end下  //TODO(jxl): pose_undist[n]，作者还没测试 https://github.com/gogojjh/M-LOAM/issues/6
             for (PointI &point : cur_feature_.second[n]["corner_points_less_sharp"]) TransformToEnd(point, point, pose_undist[IDX_REF], true, SCAN_PERIOD);
             for (PointI &point : cur_feature_.second[n]["surf_points_less_flat"]) TransformToEnd(point, point, pose_undist[IDX_REF], true, SCAN_PERIOD);
 			for (PointI &point : cur_feature_.second[n]["laser_cloud"]) TransformToEnd(point, point, pose_undist[IDX_REF], true, SCAN_PERIOD);
@@ -447,12 +447,12 @@ void Estimator::process()
 
             // initialize extrinsics
             printf("calibrating extrinsic param, sufficient movement is needed\n");
-            if (initial_extrinsics_.addPose(pose_rlt_) && (cir_buf_cnt_ == WINDOW_SIZE))
+            if (initial_extrinsics_.addPose(pose_rlt_) && (cir_buf_cnt_ == WINDOW_SIZE)) //标定的时候需要机器人做“螺丝”运动，给予充分激励
             {
                 // TicToc t_calib_ext;
                 for (size_t n = 0; n < NUM_OF_LASER; n++)
                 {
-                    if (initial_extrinsics_.cov_rot_state_[n]) continue;
+                    if (initial_extrinsics_.cov_rot_state_[n]) continue; //忽略主雷达，n=0时
                     Pose calib_result;
                     if (initial_extrinsics_.calibExRotation(IDX_REF, n, calib_result)) //IDX_REF=0
                     {
@@ -616,6 +616,7 @@ void Estimator::process()
 
         pose_laser_prev_ = pose_laser_cur;
         //TODO(jxl): 为何不在对当前帧feature points去畸变后，再和prev feature points交换
+        //作者设计deskewed points不用来计算odometry，用来计算mapping. https://github.com/gogojjh/M-LOAM/issues/6
     }
 }
 
@@ -1102,6 +1103,7 @@ void Estimator::optimizeMap()
     }
 }
 
+//ESTIMATE_EXTRINSIC == 1
 void Estimator::buildCalibMap()
 {
     common::timing::Timer build_map_timer("odom_build_calib_map");
@@ -1129,7 +1131,10 @@ void Estimator::buildCalibMap()
             if (i == WINDOW_SIZE) continue;
             // if ((n != IDX_REF) && (i > pivot_idx)) continue;
             
-            //TODO(jxl): 感觉应该为[n][i]
+            //此处正确，因为buildCalibMap()函数是在ESTIMATE_EXTRINSIC == 1时调用的；
+            //副雷达的local map是用主雷达在窗口内的所有帧构建的，后面只对副雷达pivot帧下的points在local map中找correspondances.
+            //`ESTIMATE_EXTRINSIC == 0`, which calls  `buildLocalMap(); 在该函数中用的是副雷达的所有帧构建的副雷达的local map.
+            //https://github.com/gogojjh/M-LOAM/issues/7
             pcl::transformPointCloud(surf_points_stack_[IDX_REF][i], surf_points_trans, pose_local_[IDX_REF][i].T_.cast<float>());
             // for (auto &p: surf_points_trans.points) p.intensity = i;
             surf_points_local_map_[n] += surf_points_trans;
@@ -1169,7 +1174,10 @@ void Estimator::buildCalibMap()
         for (size_t i = pivot_idx; i < WINDOW_SIZE + 1; i++)//i=2,3,4
         {
             if (((n == IDX_REF) && (i == pivot_idx))
-             || ((n != IDX_REF) && (i != pivot_idx))) continue;
+             || ((n != IDX_REF) && (i != pivot_idx))) continue; 
+             //忽略主雷达的pivot帧
+             //忽略副雷达不是pivot帧的所有帧，即只考虑副雷达的pivot帧。对于副雷达只找在pivot帧在local map下的correspondances,其他帧不管。
+
             int n_neigh = (n == IDX_REF ? 5:10);
             f_extract_.matchSurfFromMap(kdtree_surf_points_local_map, //n号雷达在主雷达pivot下的local surf map kdtree
                                         surf_points_local_map_filtered_[n], //n号雷达在主雷达pivot下的local surf map
@@ -1193,11 +1201,11 @@ void Estimator::buildCalibMap()
     // if (PCL_VIEWER) visualizePCL();
 }
 
-
+//ESTIMATE_EXTRINSIC == 0
 void Estimator::buildLocalMap()
 {
     common::timing::Timer build_map_timer("odom_build_local_map");
-    int pivot_idx = WINDOW_SIZE - OPT_WINDOW_SIZE;
+    int pivot_idx = WINDOW_SIZE - OPT_WINDOW_SIZE; //4-2
     Pose pose_pivot(Qs_[pivot_idx], Ts_[pivot_idx]);
 
     // build the whole local map using all poses except the newest pose
@@ -1213,10 +1221,10 @@ void Estimator::buildLocalMap()
     for (size_t n = 0; n < NUM_OF_LASER; n++)
     {
         Pose pose_ext = Pose(qbl_[n], tbl_[n]);
-        for (size_t i = 0; i < WINDOW_SIZE + 1; i++)
+        for (size_t i = 0; i < WINDOW_SIZE + 1; i++)//0,1,2,3,4
         {
             Pose pose_i(Qs_[i], Ts_[i]);
-            pose_local_[n][i] = Pose(pose_pivot.T_.inverse() * pose_i.T_ * pose_ext.T_);
+            pose_local_[n][i] = Pose(pose_pivot.T_.inverse() * pose_i.T_ * pose_ext.T_); //主雷达pivot到各雷达n(包括自己)i帧的变换
             if (i == WINDOW_SIZE) continue;
             PointICloud surf_points_trans, corner_points_trans;
 
@@ -1271,21 +1279,21 @@ void Estimator::buildLocalMap()
         kdtree_corner_points_local_map->setInputCloud(boost::make_shared<PointICloud>(corner_points_local_map_filtered_[n]));
         Pose pose_ext = Pose(qbl_[n], tbl_[n]);
         int n_neigh = 5;
-        for (size_t i = pivot_idx + 1; i < WINDOW_SIZE + 1; i++)
+        for (size_t i = pivot_idx + 1; i < WINDOW_SIZE + 1; i++) //Xv[]中除过Xv[0]
         {
             Pose pose_i(Qs_[i], Ts_[i]);
             if (POINT_PLANE_FACTOR)
             {
-                goodFeatureMatching(kdtree_surf_points_local_map,
-                                    surf_points_local_map_filtered_[n],
-                                    surf_points_stack_[n][i],
-                                    surf_map_features_[n][i],
-                                    sel_surf_feature_idx_[n][i],
+                goodFeatureMatching(kdtree_surf_points_local_map, //n号雷达在主雷达pivot下的local surf map kdtree
+                                    surf_points_local_map_filtered_[n], //n号雷达在主雷达pivot下的local surf map
+                                    surf_points_stack_[n][i], //n号雷达在i帧下的surf points
+                                    surf_map_features_[n][i], //[out]：在“n号雷达在主雷达pivot下的local surf map”中找“n号雷达在i帧下的surf points”的correspondances
+                                    sel_surf_feature_idx_[n][i], //[out]: 
                                     's',
-                                    pose_pivot,
-                                    pose_i,
-                                    pose_ext,
-                                    ODOM_GF_RATIO);
+                                    pose_pivot, //主雷达pivot帧pose
+                                    pose_i, //主雷达i帧的pose
+                                    pose_ext, //主雷达到n雷达的外参
+                                    ODOM_GF_RATIO); //0.8
             }
             if (POINT_EDGE_FACTOR)
             {
@@ -1393,13 +1401,13 @@ void Estimator::goodFeatureMatching(const pcl::KdTreeFLANN<PointI>::Ptr &kdtree_
                                     const Pose &pose_ext,
                                     const double &gf_ratio)
 {
-    Pose pose_local(pose_pivot.T_.inverse() * pose_i.T_ * pose_ext.T_);
+    Pose pose_local(pose_pivot.T_.inverse() * pose_i.T_ * pose_ext.T_); //主雷达pivot到副雷达i的变换
 
     size_t num_all_features = laser_cloud.size();
     all_features.resize(num_all_features);
     std::vector<size_t> all_feature_idx(num_all_features);
-    std::vector<int> feature_visited(num_all_features, -1);
-    std::iota(all_feature_idx.begin(), all_feature_idx.end(), 0);
+    std::vector<int> feature_visited(num_all_features, -1); //-1: 还未用过该feature
+    std::iota(all_feature_idx.begin(), all_feature_idx.end(), 0); //依次初始化为0,1，2，...
 
     size_t num_use_features;
     num_use_features = static_cast<size_t>(num_all_features * gf_ratio);
@@ -1454,7 +1462,7 @@ void Estimator::goodFeatureMatching(const pcl::KdTreeFLANN<PointI>::Ptr &kdtree_
         {
             if ((num_sel_features >= num_use_features) ||
                 (all_feature_idx.size() == 0) ||
-                (gfm_timer.GetCountTime() * 1000 > MAX_FEATURE_SELECT_TIME))
+                (gfm_timer.GetCountTime() * 1000 > MAX_FEATURE_SELECT_TIME)) //const 7ms
                     break;
 
             std::priority_queue<FeatureWithScore, std::vector<FeatureWithScore>, std::less<FeatureWithScore>> heap_subset;
@@ -1463,7 +1471,7 @@ void Estimator::goodFeatureMatching(const pcl::KdTreeFLANN<PointI>::Ptr &kdtree_
                 if (all_feature_idx.size() == 0) break;
                 num_rnd_que = 0;
                 size_t j;
-                while (num_rnd_que < MAX_RANDOM_QUEUE_TIME)
+                while (num_rnd_que < MAX_RANDOM_QUEUE_TIME)//const 10
                 {
                     j = rgi_.geneRandUniform(0, all_feature_idx.size() - 1);
                     if (feature_visited[j] < int(num_sel_features))

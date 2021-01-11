@@ -79,7 +79,7 @@ namespace common
         Eigen::Matrix<typename Derived::Scalar, 4, 4> m;
         Eigen::Matrix<typename Derived::Scalar, 3, 1> vq = q.vec();
         typename Derived::Scalar q4 = q.w();
-        m.block(0, 0, 3, 3) << q4 * I3x3 + SkewSymmetric(vq);
+        m.block(0, 0, 3, 3) << q4 * I3x3 + SkewSymmetric(vq); //
         m.block(3, 0, 1, 3) << -vq.transpose();
         m.block(0, 3, 3, 1) << vq;
         m(3, 3) = q4;

@@ -256,6 +256,7 @@ void readParameters(std::string config_file)
     SKIP_NUM_ODOM_PUB = fsSettings["skip_num_odom_pub"];
     if (SKIP_NUM_ODOM_PUB == 0) SKIP_NUM_ODOM_PUB = 1;
 
+
     LM_OPT_ENABLE = fsSettings["lm_opt_enable"];
 
     // mapping 

@@ -113,8 +113,7 @@ extern int N_CALIB;
 extern float ODOM_GF_RATIO;
 
 extern int SKIP_NUM_ODOM_PUB;
-// extern int LM_OPT_ENABLE; //default 
-extern int LM_OPT_ENABLE = 1; //TODO(jxl): set default value
+extern int LM_OPT_ENABLE; //default 
 
 // mapping
 extern float MAP_CORNER_RES;

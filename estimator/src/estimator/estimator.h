@@ -216,7 +216,9 @@ class Estimator
 
     size_t cumu_surf_feature_cnt_, cumu_corner_feature_cnt_;
 
-    std::vector<std::vector<std::vector<size_t> > > sel_surf_feature_idx_, sel_corner_feature_idx_;
+    std::vector<std::vector<std::vector<size_t> > > sel_surf_feature_idx_, sel_corner_feature_idx_; //2个，每个对象WINDOW_SIZE + 1大小
+    //ESTIMATE_EXTRINSIC == 0下使用
+
 
     double **para_pose_{}; //OPT_WINDOW_SIZE + 1, Xv。每个位姿的顺序是[tx, ty, tz, qx, qy, qz, qw]
     double **para_ex_pose_{}; //2个, Xe
