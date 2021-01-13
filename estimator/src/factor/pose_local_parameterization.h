@@ -28,5 +28,5 @@ public:
     void setParameter();
 
     bool is_degenerate_;
-    Eigen::Matrix<double, 6, 6> V_update_;
+    Eigen::Matrix<double, 6, 6> V_update_; //发生退化时, 不为I，见Estimator::evalDegenracy()
 };

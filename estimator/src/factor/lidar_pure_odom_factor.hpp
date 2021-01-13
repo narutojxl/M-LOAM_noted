@@ -73,6 +73,7 @@ public:
 															//Utility::skewSymmetric(
 															//	   Rp.transpose() * (Ri * Rext * point_ + Ri * t_ext + t_i - t_pivot)
 															// )
+				//https://github.com/gogojjh/M-LOAM/issues/8
 
                 jacobian_pose_pivot.leftCols<6>() = sqrt_info_ * jaco_pivot;
                 jacobian_pose_pivot.rightCols<1>().setZero();
@@ -101,6 +102,7 @@ public:
 				jaco_ex.rightCols<3>() = -w.transpose() * Rp.transpose() * Ri * Utility::skewSymmetric(Rext * point_);
 				    //TODO(jxl): 和作者的推导不一致
 					//-w.transpose() * Rp.transpose() * Ri * Utility::skewSymmetric(Rext * point_) * Rext;
+					//https://github.com/gogojjh/M-LOAM/issues/8
 
                 jacobian_pose_ex.leftCols<6>() = sqrt_info_ * jaco_ex;
                 jacobian_pose_ex.rightCols<1>().setZero();
@@ -288,7 +290,7 @@ public:
 					//TODO(jxl): 和作者推导的不一致
 					//应该为: - eta * Utility::skewSymmetric(ba - bb) * Rp.transpose() * Ri * 
 					//                   (Rext * Utility::skewSymmetric(point_)
-
+                    //https://github.com/gogojjh/M-LOAM/issues/8
 				jacobian_pose_ex.setZero();
                 jacobian_pose_ex.leftCols<6>() = sqrt_info_ * jaco_ex;
             }

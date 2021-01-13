@@ -37,8 +37,8 @@ struct ResidualBlockInfo
     std::vector<double *> parameter_blocks; // parameters to be optimized
     std::vector<int> drop_set; // id of states to be marginalized
 
-    double **raw_jacobians; // Jacobian
-    std::vector<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> jacobians;
+    double **raw_jacobians; // Jacobian， //大小：由该残差块有多少个参数块决定；每个存放的是：残差对每个参数块的雅克比
+    std::vector<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> jacobians; //vector形式存放
     Eigen::VectorXd residuals; // 1x1
 
     int localSize(int size)

@@ -218,6 +218,9 @@ class Estimator
 
     std::vector<std::vector<std::vector<size_t> > > sel_surf_feature_idx_, sel_corner_feature_idx_; //2个，每个对象WINDOW_SIZE + 1大小
     //ESTIMATE_EXTRINSIC == 0下使用
+    //sel_surf_feature_idx_[n][i][j]: 挑选出n号雷达在i帧下的第j个好point在自己点云帧下的index放进 sel_surf_feature_idx_[n][i][j]
+    //sel_corner_feature_idx_[n][i][j]: 同理
+
 
 
     double **para_pose_{}; //OPT_WINDOW_SIZE + 1, Xv。每个位姿的顺序是[tx, ty, tz, qx, qy, qz, qw]
@@ -229,7 +232,7 @@ class Estimator
     std::vector<Pose> log_extrinsics_;
 
     std::vector<double> d_factor_calib_; //2个
-    std::vector<double> cur_eig_calib_;  //2个
+    std::vector<double> cur_eig_calib_;  //2个，没有使用
     std::vector<std::vector<std::pair<double, Pose> > > pose_calib_; //2个
     std::vector<bool> calib_converge_; //2个
     std::vector<size_t> num_residuals_;

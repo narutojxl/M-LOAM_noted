@@ -138,7 +138,7 @@ void computeMeanPose(const std::vector<std::pair<double, Pose> > &pose_array,
                      Pose &pose_mean, Eigen::Matrix<double, 6, 6> &pose_cov)
 {
     // Solution 1: approximation if the separate quaternions are relatively close to each other.
-    // Solution 2: compute the mean in se3
+    // Solution 2: compute the mean in se3 
     pose_cov.setZero();
     if (pose_array.size() == 1)
     {
@@ -161,7 +161,7 @@ void computeMeanPose(const std::vector<std::pair<double, Pose> > &pose_array,
         // LOG(INFO) << iter->first << ", " << iter->second;
         std::cout << iter->second << std::endl;
         LOG(INFO) << iter->second;
-        xi_mean += iter->second.se3() / pose_array_filter.size();
+        xi_mean += iter->second.se3() / pose_array_filter.size(); //在李代数空间计算均值
     }
     pose_mean = Pose(Sophus::SE3d::exp(xi_mean).matrix());
 

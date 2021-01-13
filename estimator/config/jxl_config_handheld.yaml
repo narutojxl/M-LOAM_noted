@@ -12,7 +12,7 @@ segment_valid_line_num: 3
 segment_theta: 0.53 # Lego-loam: 1.0
 
 # laser parameters
-idx_ref: 0
+idx_ref: 0   #主雷达id
 n_scans: 16    #laser beams
 num_of_laser: 2
 
@@ -118,7 +118,7 @@ distance_sq_threshold: 25  #k+1帧laser转换到k帧laser后，kd-tree查找最�
 nearby_scan: 2.5  #corner correspondace(i: j, l) and surf correspondace(i: j, l, m)所在的线束号与i点所在的线束号不能超过2.5
 
 # movement type
-planar_movement: 0  #标定时是否在平面运动
+planar_movement: 0  #标定时是否在平面运动，1：是在平面运动； 0：不在平面运动
 
 # feature corresponding paprameters
 min_match_sq_dis: 1.0 #滑窗中local map kdtree中找对应点(corner and surf correspondance)阈值距离平方
@@ -128,7 +128,7 @@ min_plane_dis: 0.2 #滑窗中local map kdtree中找对应点的cov valid分析
 marginalization_factor: 1 #滑窗边缘化残差
 point_plane_factor: 1
 point_edge_factor: 1
-prior_factor: 1
+prior_factor: 1      #外参旋转平移残差
 prior_factor_pos: 5  #外参平移残差权重
 prior_factor_rot: 40 #外参旋转残差权重
 
@@ -138,13 +138,13 @@ pcl_viewer_normal_ratio: 10
 # calibration converage parameters
 n_cumu_feature: 20
 lambda_initial: 100
-lambda_thre_calib: 70
-n_calib: 25
+lambda_thre_calib: 70  #paper：Algorithm 1: Monitoring Calibration Convergence
+n_calib: 25  #对每个雷达，25次以上标定成功
 
 # good feature
-odom_gf_ratio: 0.8  #好的特征点的比例
+odom_gf_ratio: 0.8  #一帧中好points的比例
 
-skip_num_odom_pub: 2
+skip_num_odom_pub: 2 #每隔几帧发布一次前端的scans
 
 # lm_opt_enable： 
 

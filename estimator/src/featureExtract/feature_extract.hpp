@@ -294,6 +294,7 @@ void FeatureExtract::matchSurfFromScan(const typename pcl::KdTreeFLANN<PointType
         // not consider distortion
         TransformToStart(cloud_data.points[i], point_sel, pose_local, false, SCAN_PERIOD);
         //TODO(jxl): 同上
+
         kdtree_surf_from_scan->nearestKSearch(point_sel, 1, point_search_ind, point_search_sqdis);
 
         int closest_point_ind = -1, min_point_ind2 = -1, min_point_ind3 = -1;
@@ -375,7 +376,7 @@ void FeatureExtract::matchSurfFromScan(const typename pcl::KdTreeFLANN<PointType
                 feature.idx_ = i;
                 feature.point_ = Eigen::Vector3d{cloud_data.points[i].x, cloud_data.points[i].y, cloud_data.points[i].z};
                 feature.coeffs_ = coeff;
-                feature.type_ = 's'; //TODO(jxl): corner points为默认类型‘n’
+                feature.type_ = 's'; //在代码一致性方面，或许corner points为默认类型‘n’。但是feature type在计算相邻两帧delta_T时没有用，所以无伤大雅
                 features.push_back(feature);
             }
         }
@@ -795,14 +796,14 @@ bool FeatureExtract::matchCornerPointFromMap(const typename pcl::KdTreeFLANN<Poi
 }
 
 template <typename PointType>
-bool FeatureExtract::matchSurfPointFromMap(const typename pcl::KdTreeFLANN<PointType>::Ptr &kdtree_surf_from_map,
-                                           const typename pcl::PointCloud<PointType> &cloud_map,
-                                           const PointType &point_ori,
-                                           const Pose &pose_local,
-                                           PointPlaneFeature &feature,
-                                           const size_t &idx,
-                                           const size_t &N_NEIGH,
-                                           const bool &CHECK_FOV)
+bool FeatureExtract::matchSurfPointFromMap(const typename pcl::KdTreeFLANN<PointType>::Ptr &kdtree_surf_from_map, //n号雷达在主雷达pivot下的local surf map kdtree
+                                           const typename pcl::PointCloud<PointType> &cloud_map, //n号雷达在主雷达pivot下的local surf map
+                                           const PointType &point_ori, //n号雷达在i帧下的surf points[que_idx]
+                                           const Pose &pose_local, //主雷达pivot到副雷达i的变换
+                                           PointPlaneFeature &feature, //n号雷达在i帧下的surf points[que_idx]在local map中的correspondances放置在all_features[que_idx]
+                                           const size_t &idx, //que_idx
+                                           const size_t &N_NEIGH, //5
+                                           const bool &CHECK_FOV) //false
 {
     if (!pcl::traits::has_field<PointType, pcl::fields::intensity>::value)
     {
