@@ -134,21 +134,21 @@ public:
 		delete[] jaco;
 		delete[] res;
 
-		Eigen::Quaterniond Q_pivot(param[0][6], param[0][3], param[0][4], param[0][5]);
+		Eigen::Quaterniond Q_pivot(param[0][6], param[0][3], param[0][4], param[0][5]); //主雷达pivot pose, Xv[0]
 		Eigen::Vector3d t_pivot(param[0][0], param[0][1], param[0][2]);
-		Eigen::Quaterniond Q_i(param[1][6], param[1][3], param[1][4], param[1][5]);
+		Eigen::Quaterniond Q_i(param[1][6], param[1][3], param[1][4], param[1][5]); //主雷达Xv[i], i≠0
 		Eigen::Vector3d t_i(param[1][0], param[1][1], param[1][2]);
-		Eigen::Quaterniond Q_ext(param[2][6], param[2][3], param[2][4], param[2][5]);
+		Eigen::Quaterniond Q_ext(param[2][6], param[2][3], param[2][4], param[2][5]);  //主雷达到n雷达的外参
 		Eigen::Vector3d t_ext(param[2][0], param[2][1], param[2][2]);
 
 		Eigen::Quaterniond Q_pi = Q_pivot.conjugate() * Q_i;
-		Eigen::Vector3d t_pi = Q_pivot.conjugate() * (t_i - t_pivot);
+		Eigen::Vector3d t_pi = Q_pivot.conjugate() * (t_i - t_pivot); //(Q_pi, t_pi): 主雷达pivot帧到主雷达i帧的变换
 		Eigen::Quaterniond Q_ext_pi = Q_pi * Q_ext;
-		Eigen::Vector3d t_ext_pi = Q_pi * t_ext + t_pi;
+		Eigen::Vector3d t_ext_pi = Q_pi * t_ext + t_pi; //(Q_ext_pi, t_ext_pi): 主雷达pivot帧到n雷达i帧的变换
 
 		Eigen::Vector3d w(coeff_(0), coeff_(1), coeff_(2));
         double d = coeff_(3);
-		double r = w.dot(Q_ext_pi * point_ + t_ext_pi) + d;
+		double r = w.dot(Q_ext_pi * point_ + t_ext_pi) + d; //Q_ext_pi * point_ + t_ext_pi: n雷达在i帧下的点，转换到自己的local map下
         r *= sqrt_info_;
 
         std::cout << "perturbation:" << std::endl;
@@ -183,9 +183,9 @@ public:
 				Q_ext = Q_ext * Utility::deltaQ(delta);
 
 			Eigen::Quaterniond Q_pi = Q_pivot.conjugate() * Q_i;
-			Eigen::Vector3d t_pi = Q_pivot.conjugate() * (t_i - t_pivot);
+			Eigen::Vector3d t_pi = Q_pivot.conjugate() * (t_i - t_pivot); //主雷达pivot帧到主雷达i帧施加扰动后的变换 
 			Eigen::Quaterniond Q_ext_pi = Q_pi * Q_ext;
-			Eigen::Vector3d t_ext_pi = Q_pi * t_ext + t_pi;
+			Eigen::Vector3d t_ext_pi = Q_pi * t_ext + t_pi; //主雷达pivot帧到n雷达i帧施加扰动后的变换
 
 			Eigen::Vector3d w(coeff_(0), coeff_(1), coeff_(2));
 	        double d = coeff_(3);
@@ -286,11 +286,13 @@ public:
 				Eigen::Matrix<double, 1, 6> jaco_ex;
 				jaco_ex.leftCols<3>() = eta * Utility::skewSymmetric(ba - bb) * Rp.transpose() * Ri;
 				jaco_ex.rightCols<3>() = - eta * Utility::skewSymmetric(ba - bb) * Rp.transpose() * Ri * 
-					(Rext * Utility::skewSymmetric(point_) + Utility::skewSymmetric(t_ext));
+				    //    (Rext * Utility::skewSymmetric(point_));
+					      (Rext * Utility::skewSymmetric(point_) + Utility::skewSymmetric(t_ext));  //default 
 					//TODO(jxl): 和作者推导的不一致
 					//应该为: - eta * Utility::skewSymmetric(ba - bb) * Rp.transpose() * Ri * 
-					//                   (Rext * Utility::skewSymmetric(point_)
+					//                   (Rext * Utility::skewSymmetric(point_));
                     //https://github.com/gogojjh/M-LOAM/issues/8
+
 				jacobian_pose_ex.setZero();
                 jacobian_pose_ex.leftCols<6>() = sqrt_info_ * jaco_ex;
             }
@@ -308,6 +310,9 @@ public:
         jaco[2] = new double[1 * 7];
         Evaluate(param, res, jaco);
 		std::cout << "[LidarPureOdomEdgeFactor] check begins" << std::endl;
+
+        std::cout<<"raw point is("<<point_(0)<<", "<<point_(1)<<", "<<point_(2)<<")"<<std::endl;
+
         std::cout << "analytical:" << std::endl;
 
         std::cout << res[0] << std::endl;

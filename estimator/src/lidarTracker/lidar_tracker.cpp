@@ -41,7 +41,7 @@ Pose LidarTracker::trackCloud(const cloudFeature &prev_cloud_feature,
     double para_pose[SIZE_POSE] = {pose_ini.t_(0), pose_ini.t_(1), pose_ini.t_(2), 
                                    pose_ini.q_.x(), pose_ini.q_.y(), pose_ini.q_.z(), pose_ini.q_.w()};
 
-    for (size_t iter_cnt = 0; iter_cnt < 2; iter_cnt++) //TODO(jxl): 前端里程计ceres迭代两个周期
+    for (size_t iter_cnt = 0; iter_cnt < 2; iter_cnt++) //TODO(jxl): 前端里程计迭代两个周期ceres
     {
         ceres::Problem problem;
         ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);

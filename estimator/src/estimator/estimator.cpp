@@ -717,7 +717,7 @@ void Estimator::optimizeMap()
 
         if (POINT_PLANE_FACTOR)
         {
-            CHECK_JACOBIAN = 0;
+            CHECK_JACOBIAN = 0;  
             for (size_t i = pivot_idx + 1; i < WINDOW_SIZE + 1; i++)//i =3,4
             {
                 std::vector<PointPlaneFeature> &features_frame = surf_map_features_[IDX_REF][i];
@@ -854,7 +854,9 @@ void Estimator::optimizeMap()
             }
         }
 
-        CHECK_JACOBIAN = 0;
+        CHECK_JACOBIAN = 0; //default: 0
+        
+        ROS_WARN("TEST JACOBIAN");
         if (POINT_EDGE_FACTOR)
         {
             for (size_t n = 0; n < NUM_OF_LASER; n++)
@@ -873,7 +875,7 @@ void Estimator::optimizeMap()
                                                                                           para_pose_[i - pivot_idx],
                                                                                           para_ex_pose_[n]);
                         res_ids_proj.push_back(res_id);
-                        if (CHECK_JACOBIAN)
+                        if (CHECK_JACOBIAN && frame_cnt_== 100) //TODO(jxl): 测试雅克比计算是否正确
                         {
                             double **tmp_param = new double *[3];
                             tmp_param[0] = para_pose_[0];
@@ -886,6 +888,8 @@ void Estimator::optimizeMap()
                 }
             }
         }
+        ROS_WARN("TEST JACOBIAN DONE");
+
     }
     
     common::timing::Timer eval_deg_timer("odom_eval_residual");
@@ -1548,7 +1552,8 @@ void Estimator::goodFeatureMatching(const pcl::KdTreeFLANN<PointI>::Ptr &kdtree_
 
                 const Eigen::MatrixXd &jaco = all_features[que_idx].jaco_;
                 double cur_det = common::logDet(sub_mat_H + jaco.transpose() * jaco, //sub_mat_H: 当前时刻之前，所有好points的J^T*J
-                                                true); //TODO(jxl): J^T*J分解，这块得到分数的依据是什么？
+                                                true); 
+                //TODO(jxl): J^T*J分解，这块打分的依据是什么？ https://github.com/gogojjh/M-LOAM/issues/10
 
                 //按照分数从最大到最小排序，挑出最好的point，累加好points的J^T*J, 把好point在点云中的idx放到sel_feature_idx[]
                 //同时从all_feature_idx[], feature_visited[]中移除
@@ -1830,7 +1835,7 @@ void Estimator::evalCalib()
                 {
                     LOG(INFO) << n << ":";
                     Eigen::Matrix<double, 6, 6> pose_cov;
-                    
+
                     computeMeanPose(pose_calib_[n], pose_mean, pose_cov); // compute the mean calibration parameters
                     //在李代数空间计算均值
 

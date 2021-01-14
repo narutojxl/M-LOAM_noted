@@ -90,8 +90,8 @@ void pubPointCloud(const Estimator &estimator, const double &time)
     PointICloud corner_points_sharp, corner_points_less_sharp, surf_points_flat, surf_points_less_flat;
     for (size_t n = 0; n < NUM_OF_LASER; n++)
     {
-        Pose pose_ext = Pose(estimator.qbl_[n], estimator.tbl_[n]);
-        cloudFeature cloud_feature_trans = transformCloudFeature(estimator.cur_feature_.second[n], pose_ext.T_.cast<float>(), n);
+        Pose pose_ext = Pose(estimator.qbl_[n], estimator.tbl_[n]); //主雷达到n雷达的外参
+        cloudFeature cloud_feature_trans = transformCloudFeature(estimator.cur_feature_.second[n], pose_ext.T_.cast<float>(), n); //转到主雷达下
         laser_cloud += cloud_feature_trans["laser_cloud"];
         if ((ESTIMATE_EXTRINSIC == 0) || (n == IDX_REF))
         {
@@ -100,10 +100,10 @@ void pubPointCloud(const Estimator &estimator, const double &time)
             surf_points_less_flat += cloud_feature_trans["surf_points_less_flat"];
         }
     }
-    publishCloud(pub_laser_cloud, header, laser_cloud);
-    publishCloud(pub_laser_outlier, header, laser_cloud_outlier);    
-    publishCloud(pub_corner_points_less_sharp, header, corner_points_less_sharp);
-    publishCloud(pub_surf_points_less_flat, header, surf_points_less_flat);
+    publishCloud(pub_laser_cloud, header, laser_cloud); //所有雷达curr points
+    publishCloud(pub_laser_outlier, header, laser_cloud_outlier); //所有雷达curr outlier points, 包含没有形成聚类的points  
+    publishCloud(pub_corner_points_less_sharp, header, corner_points_less_sharp); //所有雷达curr corner_less_sharp points  
+    publishCloud(pub_surf_points_less_flat, header, surf_points_less_flat); //所有雷达curr surf_less_flat points  
 
     // publish local map
     if (estimator.solver_flag_ == Estimator::SolverFlag::NON_LINEAR)
@@ -157,7 +157,8 @@ void printStatistics(const Estimator &estimator, double t)
 
 void pubOdometry(Estimator &estimator, const double &time)
 {
-    if (ESTIMATE_EXTRINSIC == 2)
+    if (ESTIMATE_EXTRINSIC == 2) //外参估计阶段还未结束； 
+            //标定状态由2转为1，进入refine阶段; 后面对外参refine收敛结束后，转为 ESTIMATE_EXTRINSIC = 0，见evalCalib()
     {
         for (auto n = 0; n < NUM_OF_LASER; n++)
         {
@@ -166,7 +167,7 @@ void pubOdometry(Estimator &estimator, const double &time)
             laser_odom.header.frame_id = "/world";
             laser_odom.child_frame_id = "/odom_laser_" + std::to_string(n);
             Pose pose_laser_cur = estimator.pose_laser_cur_[n];
-            laser_odom.pose.pose.orientation.x = pose_laser_cur.q_.x();
+            laser_odom.pose.pose.orientation.x = pose_laser_cur.q_.x(); //每个雷达在odom下的位姿
             laser_odom.pose.pose.orientation.y = pose_laser_cur.q_.y();
             laser_odom.pose.pose.orientation.z = pose_laser_cur.q_.z();
             laser_odom.pose.pose.orientation.w = pose_laser_cur.q_.w();
@@ -186,7 +187,7 @@ void pubOdometry(Estimator &estimator, const double &time)
     } else
     {
         Pose pose_laser_cur;
-        if (estimator.solver_flag_ == Estimator::SolverFlag::INITIAL)
+        if (estimator.solver_flag_ == Estimator::SolverFlag::INITIAL) //还未进行过滑窗
         {
             pose_laser_cur = estimator.pose_laser_cur_[IDX_REF];
         } else
@@ -204,15 +205,15 @@ void pubOdometry(Estimator &estimator, const double &time)
         laser_odom.pose.pose.position.x = pose_laser_cur.t_.x();
         laser_odom.pose.pose.position.y = pose_laser_cur.t_.y();
         laser_odom.pose.pose.position.z = pose_laser_cur.t_.z();
-        v_pub_laser_odom[IDX_REF].publish(laser_odom);
-        publishTF(laser_odom);
+        v_pub_laser_odom[IDX_REF].publish(laser_odom); //主雷达在odom下位姿 topic, "/laser_odom_0"
+        publishTF(laser_odom); //主雷达在odom下位姿 tf
 
         geometry_msgs::PoseStamped laser_pose;
         laser_pose.header = laser_odom.header;
         laser_pose.pose = laser_odom.pose.pose;
         estimator.v_laser_path_[IDX_REF].header = laser_odom.header;
         estimator.v_laser_path_[IDX_REF].poses.push_back(laser_pose);
-        v_pub_laser_path[IDX_REF].publish(estimator.v_laser_path_[IDX_REF]);
+        v_pub_laser_path[IDX_REF].publish(estimator.v_laser_path_[IDX_REF]); //发布主雷达在odom下的path, "/laser_odom_path_0"
     }
 
     // publish extrinsics
@@ -240,7 +241,7 @@ void pubOdometry(Estimator &estimator, const double &time)
         publishTF(exts);
         extrinsics.odoms.push_back(exts);
     }
-    pub_extrinsics.publish(extrinsics);
+    pub_extrinsics.publish(extrinsics); //外参topic "/extrinsics" 
 }
 
 //

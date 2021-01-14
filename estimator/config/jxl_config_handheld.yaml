@@ -142,7 +142,7 @@ lambda_thre_calib: 70  #paper：Algorithm 1: Monitoring Calibration Convergence
 n_calib: 25  #对每个雷达，25次以上标定成功
 
 # good feature
-odom_gf_ratio: 0.8  #一帧中好points的比例
+odom_gf_ratio: 0.8  #一帧中好的match of feature points的比例
 
 skip_num_odom_pub: 2 #每隔几帧发布一次前端的scans
 
