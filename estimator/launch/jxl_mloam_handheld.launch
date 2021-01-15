@@ -15,6 +15,7 @@
     <arg name="data_source" default="bag"/>
     <arg name="result_save" default="true"/>
     <arg name="output_path" default="/home/jxl/Downloads/mloam/RHD/"/>
+    
     <arg name="with_ua" default="true" /> <!-- awareness of uncertainty propagation-->    
     <arg name="gf_method" default="wo_gf" /> <!-- gd_fix, gd_float, rnd, fps, wo_gf-->
     <arg name="gf_ratio_ini" default="1.0" />
@@ -36,7 +37,7 @@
                       -with_ua=$(arg with_ua)
                       -gf_method=$(arg gf_method)
                       -gf_ratio_ini=$(arg gf_ratio_ini)" >
-                <remap from="/laser_odom" to="/laser_odom_0"/>
+                <remap from="/laser_odom" to="/laser_odom_0"/> <!--主雷达在odom下位姿-->
             </node>
         </group>
     </group>

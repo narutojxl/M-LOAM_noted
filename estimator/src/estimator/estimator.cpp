@@ -717,7 +717,8 @@ void Estimator::optimizeMap()
 
         if (POINT_PLANE_FACTOR)
         {
-            CHECK_JACOBIAN = 0;  
+            CHECK_JACOBIAN = 0;  //default  //TODO(jxl): check jacobians
+            // CHECK_JACOBIAN = 1;
             for (size_t i = pivot_idx + 1; i < WINDOW_SIZE + 1; i++)//i =3,4
             {
                 std::vector<PointPlaneFeature> &features_frame = surf_map_features_[IDX_REF][i];
@@ -875,7 +876,7 @@ void Estimator::optimizeMap()
                                                                                           para_pose_[i - pivot_idx],
                                                                                           para_ex_pose_[n]);
                         res_ids_proj.push_back(res_id);
-                        if (CHECK_JACOBIAN && frame_cnt_== 100) //TODO(jxl): 测试雅克比计算是否正确
+                        if (CHECK_JACOBIAN) //TODO(jxl): 测试雅克比计算是否正确
                         {
                             double **tmp_param = new double *[3];
                             tmp_param[0] = para_pose_[0];

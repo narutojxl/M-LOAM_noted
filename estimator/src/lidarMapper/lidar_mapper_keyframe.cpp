@@ -34,9 +34,9 @@ std::queue<sensor_msgs::PointCloud2ConstPtr> surf_last_buf;
 std::queue<sensor_msgs::PointCloud2ConstPtr> corner_last_buf;
 std::queue<sensor_msgs::PointCloud2ConstPtr> full_res_buf;
 std::queue<sensor_msgs::PointCloud2ConstPtr> outlier_buf;
-std::queue<nav_msgs::Odometry::ConstPtr> odometry_buf;
-std::queue<mloam_msgs::ExtrinsicsConstPtr> ext_buf;
-std::queue<mloam_msgs::KeyframesConstPtr> loop_info_buf;
+std::queue<nav_msgs::Odometry::ConstPtr> odometry_buf; //odom
+std::queue<mloam_msgs::ExtrinsicsConstPtr> ext_buf; //外参
+std::queue<mloam_msgs::KeyframesConstPtr> loop_info_buf; //闭环
 std::mutex m_buf;
 
 PointICloud::Ptr laser_cloud_surf_last(new PointICloud());
@@ -71,9 +71,9 @@ PointICloud::Ptr global_map_keyframes_ds(new PointICloud());
 std::vector<int> surrounding_existing_keyframes_id;
 std::vector<PointICovCloud::Ptr> surrounding_surf_cloud_keyframes;
 std::vector<PointICovCloud::Ptr> surrounding_corner_cloud_keyframes;
-std::vector<PointICovCloud::Ptr> surf_cloud_keyframes_cov;
-std::vector<PointICovCloud::Ptr> corner_cloud_keyframes_cov;
-std::vector<PointICovCloud::Ptr> outlier_cloud_keyframes_cov;
+std::vector<PointICovCloud::Ptr> surf_cloud_keyframes_cov;  //所有keyframes surf points
+std::vector<PointICovCloud::Ptr> corner_cloud_keyframes_cov;//所有keyframes corner points
+std::vector<PointICovCloud::Ptr> outlier_cloud_keyframes_cov;//所有keyframes outlier points
 
 // downsampling voxel grid
 pcl::VoxelGridCovarianceMLOAM<PointI> down_size_filter_surf;
@@ -101,6 +101,7 @@ mloam_msgs::Keyframes loop_info;
 // transformation between odom's world and map's world frame
 double para_pose[SIZE_POSE];
 Pose pose_wmap_prev, pose_wmap_curr, pose_wmap_wodom, pose_wodom_curr;
+//主雷达T_map_prev, T_map_curr, T_map_odom, T_odom_curr
 
 ros::Publisher pub_laser_cloud_surrounding, pub_laser_cloud_map;
 ros::Publisher pub_laser_cloud_full_res;
@@ -113,7 +114,7 @@ nav_msgs::Path laser_after_mapped_path;
 
 // extrinsics
 mloam_msgs::Extrinsics extrinsics;
-std::vector<Pose> pose_ext;
+std::vector<Pose> pose_ext; //外参
 
 std::vector<Eigen::Matrix<double, 1, 6> > d_factor_list;
 std::vector<Eigen::Matrix<double, 6, 6> > d_eigvec_list;
@@ -128,7 +129,7 @@ std::vector<double> total_solver;
 std::vector<double> total_mapping;
 
 bool is_degenerate;
-bool with_ua_flag;
+bool with_ua_flag; //true, <!-- awareness of uncertainty propagation-->  
 
 Eigen::Matrix<double, 6, 6> cov_mapping;
 
@@ -209,7 +210,7 @@ void laserOdometryHandler(const nav_msgs::Odometry::ConstPtr &laser_odom)
 	m_buf.unlock();
 
 	Eigen::Quaterniond q_wodom_curr;
-	Eigen::Vector3d t_wodom_curr;
+	Eigen::Vector3d t_wodom_curr; //TODO(jxl): 没有使用
 	q_wodom_curr.x() = laser_odom->pose.pose.orientation.x;
 	q_wodom_curr.y() = laser_odom->pose.pose.orientation.y;
 	q_wodom_curr.z() = laser_odom->pose.pose.orientation.z;
@@ -259,13 +260,14 @@ void extractSurroundingKeyFrames()
         printf("not need to construct the map\n");
         return;
     }
+    //只有当上一帧是个keyframe，本次scan才会被处理提取特征；否则，直接return。
 
     // update the current point
-    pose_point_cur.x = pose_wmap_curr.t_[0];
+    pose_point_cur.x = pose_wmap_curr.t_[0]; //当前帧在map下pose init值
     pose_point_cur.y = pose_wmap_curr.t_[1];
     pose_point_cur.z = pose_wmap_curr.t_[2];
 
-    surrounding_keyframes->clear();
+    surrounding_keyframes->clear();  //在关键帧的kd tree中搜索距离当期帧30m以内, 都有哪些keyframes
     kdtree_surrounding_keyframes->setInputCloud(pose_keyframes_3d);
     kdtree_surrounding_keyframes->radiusSearch(pose_point_cur, SURROUNDING_KF_RADIUS, point_search_ind, point_search_sq_dis, 0);
     for (size_t i = 0; i < point_search_ind.size(); i++)
@@ -357,30 +359,30 @@ void downsampleCurrentScan()
 {
     laser_cloud_surf_last_ds->clear();
     down_size_filter_surf.setInputCloud(laser_cloud_surf_last);
-    down_size_filter_surf.filter(*laser_cloud_surf_last_ds);
+    down_size_filter_surf.filter(*laser_cloud_surf_last_ds); //所有雷达curr帧，转到主雷达下
 
     laser_cloud_corner_last_ds->clear();
     down_size_filter_corner.setInputCloud(laser_cloud_corner_last);
-    down_size_filter_corner.filter(*laser_cloud_corner_last_ds);
+    down_size_filter_corner.filter(*laser_cloud_corner_last_ds); //所有雷达curr帧，转到主雷达下 
 
     laser_cloud_outlier_ds->clear();
     down_size_filter_outlier.setInputCloud(laser_cloud_outlier);
-    down_size_filter_outlier.filter(*laser_cloud_outlier_ds);
+    down_size_filter_outlier.filter(*laser_cloud_outlier_ds); //所有雷达curr帧，转到主雷达下 
 
     // propagate the extrinsic uncertainty on points
-    laser_cloud_surf_cov->clear();
+    laser_cloud_surf_cov->clear(); //计算每个点的cov
     laser_cloud_corner_cov->clear();
     laser_cloud_outlier_cov->clear();
 
     for (PointI &point_ori : *laser_cloud_surf_last_ds)
     {
-        int idx = int(point_ori.intensity); // indicate the lidar id
+        int idx = int(point_ori.intensity); // indicate the lidar id， 见visualization.cpp::transformCloudFeature()
         PointI point_sel;
         Eigen::Matrix3d cov_point = Eigen::Matrix3d::Zero();
         if (with_ua_flag)
         {
-            pointAssociateToMap(point_ori, point_sel, pose_ext[idx].inverse());
-            evalPointUncertainty(point_sel, cov_point, pose_ext[idx]);
+            pointAssociateToMap(point_ori, point_sel, pose_ext[idx].inverse()); //point_sel: 在n雷达curr帧下
+            evalPointUncertainty(point_sel, cov_point, pose_ext[idx]); //TODO(jxl): 传播外参的cov到点的不确定性
             if (cov_point.trace() > TRACE_THRESHOLD_MAPPING) continue;
         }
         PointIWithCov point_cov(point_ori, cov_point.cast<float>());
@@ -650,7 +652,7 @@ void saveKeyframe()
            + (pose_point_cur.y - pose_point_prev.y) * (pose_point_cur.y - pose_point_prev.y) 
            + (pose_point_cur.z - pose_point_prev.z) * (pose_point_cur.z - pose_point_prev.z)) > DISTANCE_KEYFRAMES ||
         q_ori_cur.angularDistance(q_ori_prev) / M_PI * 180 > ORIENTATION_KEYFRAMES || 
-        pose_keyframes_6d.size() == 0)
+        pose_keyframes_6d.size() == 0) //后端接收的第一帧scan
     {
         save_new_keyframe = true;
     }
@@ -663,7 +665,7 @@ void saveKeyframe()
     pose_3d.x = pose_wmap_curr.t_[0];
     pose_3d.y = pose_wmap_curr.t_[1];
     pose_3d.z = pose_wmap_curr.t_[2];
-    pose_3d.intensity = pose_keyframes_3d->size();
+    pose_3d.intensity = pose_keyframes_3d->size(); //keyframe index
 
     pose_keyframes_3d->push_back(pose_3d);
     pose_keyframes_6d.push_back(std::make_pair(time_laser_odometry, pose_wmap_curr));
@@ -691,7 +693,7 @@ void pubPointCloud()
 {
     // publish registrated laser cloud
     *laser_cloud_full_res += *laser_cloud_outlier;
-    for (PointI &point : *laser_cloud_full_res) pointAssociateToMap(point, point, pose_wmap_curr);
+    for (PointI &point : *laser_cloud_full_res) pointAssociateToMap(point, point, pose_wmap_curr); //转换到map下
     sensor_msgs::PointCloud2 laser_cloud_full_res_msg;
     pcl::toROSMsg(*laser_cloud_full_res, laser_cloud_full_res_msg);
     laser_cloud_full_res_msg.header.stamp = ros::Time().fromSec(time_laser_odometry);
@@ -730,7 +732,7 @@ void pubOdometry()
     for (size_t i = 0; i < 6; i++)
         for (size_t j = 0; j < 6; j++)
             odom_aft_mapped.pose.covariance[i * 6 + j] = float(pose_wmap_curr.cov_(i, j));
-    pub_odom_aft_mapped.publish(odom_aft_mapped);
+    pub_odom_aft_mapped.publish(odom_aft_mapped); 
 
     geometry_msgs::PoseStamped laser_after_mapped_pose;
     laser_after_mapped_pose.header = odom_aft_mapped.header;
@@ -920,7 +922,7 @@ void saveGlobalMap()
 
 void clearCloud()
 {
-    laser_cloud_surf_from_map_cov->clear();
+    laser_cloud_surf_from_map_cov->clear(); //如果当前帧是个keyframe, 在末尾清空，为下次keyframe做准备
     laser_cloud_corner_from_map_cov->clear();
     laser_cloud_surf_from_map_cov_ds->clear();
     laser_cloud_corner_from_map_cov_ds->clear();
@@ -1000,6 +1002,8 @@ void process()
 				break;
 			}
 
+            //消息是同步的
+
 			laser_cloud_surf_last->clear();
 			pcl::fromROSMsg(*surf_last_buf.front(), *laser_cloud_surf_last);
 			surf_last_buf.pop();
@@ -1023,10 +1027,11 @@ void process()
 			pose_wodom_curr.t_ = Eigen::Vector3d(odometry_buf.front()->pose.pose.position.x,
 												 odometry_buf.front()->pose.pose.position.y,
 												 odometry_buf.front()->pose.pose.position.z);
+            //curr帧在odom位姿
 			odometry_buf.pop();
 
 			extrinsics = *ext_buf.front();
-			if (!extrinsics.status)
+			if (!extrinsics.status)//visualization.cpp#L223, 最后都转为了0
 			{
 				std::cout << common::YELLOW << "Accurate extrinsic calibration!" << common::RESET << std::endl;
 				for (size_t n = 0; n < NUM_OF_LASER; n++)
@@ -1045,7 +1050,7 @@ void process()
 			}
 			ext_buf.pop();
 
-            while (!surf_last_buf.empty())
+            while (!surf_last_buf.empty()) //TODO(jxl): 一直pop，直到为空
             {
 				surf_last_buf.pop();
                 frame_drop_cnt++;
@@ -1059,24 +1064,24 @@ void process()
 			frame_cnt++;
 			common::timing::Timer process_timer("mapping_process");
 
-			transformAssociateToMap();
+			transformAssociateToMap(); //结合当前帧在odom位姿和之前计算的T_map_odom, 预测当前帧在map下位姿
 
             common::timing::Timer extract_kf_timer("mapping_extract_kf");
             extractSurroundingKeyFrames();
             printf("extract surrounding keyframes: %fms\n", extract_kf_timer.Stop() * 1000);
 
             common::timing::Timer dscs_timer("mapping_dscs");
-            downsampleCurrentScan();
+            downsampleCurrentScan(); //对点云降采样，传播外参的cov到点的cov
             // printf("downsample current scan time: %fms\n", t_dscs.toc());
 
             common::timing::Timer opti_timer("mapping_opti");
             scan2MapOptimization();
             printf("optimization time: %fms\n", opti_timer.Stop() * 1000);
 
-			transformUpdate();
+			transformUpdate(); //计算T_map_odom
 
             common::timing::Timer skf_timer("mapping_save_kf");
-            saveKeyframe();
+            saveKeyframe(); //保存关键帧pose，和相应的surf, corner, outlier points
             printf("save keyframes time: %fms\n", skf_timer.Stop() * 1000);
 
             // TODO: using loop info to update keyframes
@@ -1089,7 +1094,7 @@ void process()
                 loop_info = *loop_info_buf.front();
                 if (loop_info.status)
                 {
-                    updateKeyframe();
+                    updateKeyframe(); //TODO(jxl): 还没有实现完闭环检测
                 }
                 loop_info_buf.pop();
             }
@@ -1113,10 +1118,10 @@ void process()
 	}
 }
 
-void cloudUCTAssociateToMap(const PointICovCloud &cloud_local,
-                            PointICovCloud &cloud_global,
-                            const Pose &pose_global,
-                            const vector<Pose> &pose_ext)
+void cloudUCTAssociateToMap(const PointICovCloud &cloud_local, //关键帧points
+                            PointICovCloud &cloud_global, //[out]
+                            const Pose &pose_global,  //关键帧位姿
+                            const vector<Pose> &pose_ext) //外参
 {
     // the compound pose: pose_global * pose_ext with uncertainty
     std::vector<Pose> pose_compound(NUM_OF_LASER);
@@ -1246,7 +1251,8 @@ int main(int argc, char **argv)
 	printf("with the awareness of uncertainty (0/1): %d\n", with_ua_flag);
     printf("gf method: %s, gf ratio: %f\n", FLAGS_gf_method.c_str(), FLAGS_gf_ratio_ini);
     gf_ratio_cur = std::min(1.0, FLAGS_gf_ratio_ini);
-	if (with_ua_flag)
+
+	if (with_ua_flag) //true
         MLOAM_MAP_PATH = OUTPUT_FOLDER + "traj/stamped_mloam_map_estimate_" + FLAGS_gf_method + "_" + to_string(FLAGS_gf_ratio_ini) + ".txt";
     else
         MLOAM_MAP_PATH = OUTPUT_FOLDER + "traj/stamped_mloam_map_wo_ua_estimate_" + FLAGS_gf_method + "_" + to_string(FLAGS_gf_ratio_ini) + ".txt";
@@ -1255,26 +1261,26 @@ int main(int argc, char **argv)
 	readParameters(FLAGS_config_file);
 	printf("Mapping as %fhz\n", 1.0 / (SCAN_PERIOD * SKIP_NUM_ODOM_PUB));
 
-	ros::Subscriber sub_laser_cloud_full_res = nh.subscribe<sensor_msgs::PointCloud2>("/laser_cloud", 10, laserCloudFullResHandler);
-    ros::Subscriber sub_laser_cloud_outlier = nh.subscribe<sensor_msgs::PointCloud2>("/laser_cloud_outlier", 10, laserCloudOutlierResHandler);
-    ros::Subscriber sub_laser_cloud_surf_last = nh.subscribe<sensor_msgs::PointCloud2>("/surf_points_less_flat", 10, laserCloudSurfLastHandler);
-	ros::Subscriber sub_laser_cloud_corner_last = nh.subscribe<sensor_msgs::PointCloud2>("/corner_points_less_sharp", 10, laserCloudCornerLastHandler);
-	ros::Subscriber sub_laser_odometry = nh.subscribe<nav_msgs::Odometry>("/laser_odom", 10, laserOdometryHandler);
-	ros::Subscriber sub_extrinsic = nh.subscribe<mloam_msgs::Extrinsics>("/extrinsics", 10, extrinsicsHandler);
-    ros::Subscriber sub_loop_info = nh.subscribe<mloam_msgs::Keyframes>("/loop_info", 10, loopInfoHandler);
+	ros::Subscriber sub_laser_cloud_full_res = nh.subscribe<sensor_msgs::PointCloud2>("/laser_cloud", 10, laserCloudFullResHandler); //所有雷达curr points, 转到主雷达下 
+    ros::Subscriber sub_laser_cloud_outlier = nh.subscribe<sensor_msgs::PointCloud2>("/laser_cloud_outlier", 10, laserCloudOutlierResHandler); //所有雷达curr outlier points, 包含没有形成聚类的points, 转到主雷达下 
+    ros::Subscriber sub_laser_cloud_surf_last = nh.subscribe<sensor_msgs::PointCloud2>("/surf_points_less_flat", 10, laserCloudSurfLastHandler); //所有雷达curr surf_less_flat points, 转到主雷达下 
+	ros::Subscriber sub_laser_cloud_corner_last = nh.subscribe<sensor_msgs::PointCloud2>("/corner_points_less_sharp", 10, laserCloudCornerLastHandler); //所有雷达curr corner_less_sharp points, 转到主雷达下
+	ros::Subscriber sub_laser_odometry = nh.subscribe<nav_msgs::Odometry>("/laser_odom", 10, laserOdometryHandler); //remapped, "laser_odom_0"
+	ros::Subscriber sub_extrinsic = nh.subscribe<mloam_msgs::Extrinsics>("/extrinsics", 10, extrinsicsHandler); //外参
+    ros::Subscriber sub_loop_info = nh.subscribe<mloam_msgs::Keyframes>("/loop_info", 10, loopInfoHandler); //mloam_loop模块
 
-	pub_laser_cloud_full_res = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_registered", 5);
-	pub_laser_cloud_surf_last_res = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surf_registered", 5);
-	pub_laser_cloud_corner_last_res = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_corner_registered", 5);
+	pub_laser_cloud_full_res = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_registered", 5); //每一帧在map下points，包含了outliers(未聚类的points)
+	pub_laser_cloud_surf_last_res = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surf_registered", 5); //每一帧surf在map下points
+	pub_laser_cloud_corner_last_res = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_corner_registered", 5);//每一帧corner在map下points
 	pub_laser_cloud_surrounding = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surround", 5);
 	pub_laser_cloud_map = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_map", 5);
     pub_good_surf_feature = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surf_good", 5);
 
-	pub_odom_aft_mapped = nh.advertise<nav_msgs::Odometry>("/laser_map", 5); // raw pose from odometry in the world
+	pub_odom_aft_mapped = nh.advertise<nav_msgs::Odometry>("/laser_map", 5); // raw pose from odometry in the world   curr主雷达在map下位姿
 	pub_odom_aft_mapped_high_frec = nh.advertise<nav_msgs::Odometry>("/laser_map_high_frec", 5); // optimized pose in the world
-	pub_laser_after_mapped_path = nh.advertise<nav_msgs::Path>("/laser_map_path", 5);
-    pub_keyframes = nh.advertise<sensor_msgs::PointCloud2>("/laser_map_keyframes", 5);
-    pub_keyframes_6d = nh.advertise<mloam_msgs::Keyframes>("/laser_map_keyframes_6d", 5);
+	pub_laser_after_mapped_path = nh.advertise<nav_msgs::Path>("/laser_map_path", 5); //主雷达在map下path
+    pub_keyframes = nh.advertise<sensor_msgs::PointCloud2>("/laser_map_keyframes", 5); //在map下所有keyframes位置
+    pub_keyframes_6d = nh.advertise<mloam_msgs::Keyframes>("/laser_map_keyframes_6d", 5); //在map下所有keyframes pose
 
     down_size_filter_surf.setLeafSize(MAP_SURF_RES, MAP_SURF_RES, MAP_SURF_RES);
     down_size_filter_surf.setTraceThreshold(TRACE_THRESHOLD_MAPPING);
@@ -1312,7 +1318,7 @@ int main(int argc, char **argv)
 
     signal(SIGINT, sigintHandler);
 
-    std::thread mapping_process{process};
+    std::thread mapping_process{process}; //入口
     std::thread pub_map_process{pubGlobalMap};
 
     ros::Rate loop_rate(100);

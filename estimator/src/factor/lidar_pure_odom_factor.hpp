@@ -67,12 +67,10 @@ public:
 
                 Eigen::Matrix<double, 1, 6> jaco_pivot;
 				jaco_pivot.leftCols<3>() = -w.transpose() * Rp.transpose();
-				jaco_pivot.rightCols<3>() = w.transpose() * (Rp.transpose() *
-															 Utility::skewSymmetric(Ri * Rext * point_ + Ri * t_ext + t_i - t_pivot));
-															//TODO(jxl): 和作者的推导不一致
-															//Utility::skewSymmetric(
-															//	   Rp.transpose() * (Ri * Rext * point_ + Ri * t_ext + t_i - t_pivot)
-															// )
+				jaco_pivot.rightCols<3>() = w.transpose() * (Rp.transpose() * Utility::skewSymmetric(Ri * Rext * point_ + Ri * t_ext + t_i - t_pivot));
+				
+				//TODO(jxl): 和作者的推导不一致
+				// jaco_pivot.rightCols<3>() = w.transpose() * Utility::skewSymmetric(Rp.transpose() * (Ri * Rext * point_ + Ri * t_ext + t_i - t_pivot));
 				//https://github.com/gogojjh/M-LOAM/issues/8
 
                 jacobian_pose_pivot.leftCols<6>() = sqrt_info_ * jaco_pivot;
@@ -100,9 +98,10 @@ public:
 				Eigen::Matrix<double, 1, 6> jaco_ex;
 				jaco_ex.leftCols<3>() = w.transpose() * Rp.transpose() * Ri;
 				jaco_ex.rightCols<3>() = -w.transpose() * Rp.transpose() * Ri * Utility::skewSymmetric(Rext * point_);
-				    //TODO(jxl): 和作者的推导不一致
-					//-w.transpose() * Rp.transpose() * Ri * Utility::skewSymmetric(Rext * point_) * Rext;
-					//https://github.com/gogojjh/M-LOAM/issues/8
+				
+				//TODO(jxl): 和作者的推导不一致
+				// jaco_ex.rightCols<3>() = -w.transpose() * Rp.transpose() * Ri * Utility::skewSymmetric(Rext * point_) * Rext;
+				//https://github.com/gogojjh/M-LOAM/issues/8
 
                 jacobian_pose_ex.leftCols<6>() = sqrt_info_ * jaco_ex;
                 jacobian_pose_ex.rightCols<1>().setZero();
@@ -121,6 +120,7 @@ public:
         jaco[2] = new double[1 * 7];
         Evaluate(param, res, jaco);
 		std::cout << "[LidarPureOdomPlaneNormFactor] check begins" << std::endl;
+		std::cout<<"raw point is("<<point_(0)<<", "<<point_(1)<<", "<<point_(2)<<")"<<std::endl;
         std::cout << "analytical:" << std::endl;
 
         std::cout << res[0] << std::endl;
@@ -286,8 +286,8 @@ public:
 				Eigen::Matrix<double, 1, 6> jaco_ex;
 				jaco_ex.leftCols<3>() = eta * Utility::skewSymmetric(ba - bb) * Rp.transpose() * Ri;
 				jaco_ex.rightCols<3>() = - eta * Utility::skewSymmetric(ba - bb) * Rp.transpose() * Ri * 
-				    //    (Rext * Utility::skewSymmetric(point_));
 					      (Rext * Utility::skewSymmetric(point_) + Utility::skewSymmetric(t_ext));  //default 
+
 					//TODO(jxl): 和作者推导的不一致
 					//应该为: - eta * Utility::skewSymmetric(ba - bb) * Rp.transpose() * Ri * 
 					//                   (Rext * Utility::skewSymmetric(point_));

@@ -44,8 +44,10 @@ cloudFeature transformCloudFeature(const cloudFeature &cloud_feature, const Eige
     {
         PointICloud trans_cloud;
         pcl::transformPointCloud(iter->second, trans_cloud, trans);
+
         // for (auto &p: trans_cloud.points) p.intensity = n + (p.intensity - int(p.intensity));
-        for (auto &p: trans_cloud.points) p.intensity = n;
+        for (auto &p: trans_cloud.points) p.intensity = n; //把点的强度换为雷达id号
+
         trans_cloud_feature.insert(pair<std::string, PointICloud>(iter->first, trans_cloud));
     }
     return trans_cloud_feature;
@@ -100,10 +102,10 @@ void pubPointCloud(const Estimator &estimator, const double &time)
             surf_points_less_flat += cloud_feature_trans["surf_points_less_flat"];
         }
     }
-    publishCloud(pub_laser_cloud, header, laser_cloud); //所有雷达curr points
-    publishCloud(pub_laser_outlier, header, laser_cloud_outlier); //所有雷达curr outlier points, 包含没有形成聚类的points  
-    publishCloud(pub_corner_points_less_sharp, header, corner_points_less_sharp); //所有雷达curr corner_less_sharp points  
-    publishCloud(pub_surf_points_less_flat, header, surf_points_less_flat); //所有雷达curr surf_less_flat points  
+    publishCloud(pub_laser_cloud, header, laser_cloud); //所有雷达curr points, 转到主雷达下
+    publishCloud(pub_laser_outlier, header, laser_cloud_outlier); //所有雷达curr outlier points, 包含没有形成聚类的points, 转到主雷达下
+    publishCloud(pub_corner_points_less_sharp, header, corner_points_less_sharp); //所有雷达curr corner_less_sharp points, 转到主雷达下  
+    publishCloud(pub_surf_points_less_flat, header, surf_points_less_flat); //所有雷达curr surf_less_flat points, 转到主雷达下  
 
     // publish local map
     if (estimator.solver_flag_ == Estimator::SolverFlag::NON_LINEAR)

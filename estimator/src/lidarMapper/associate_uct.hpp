@@ -192,7 +192,9 @@ inline void evalPointUncertainty(const PointType &pi,
 }
 
 template <typename PointType>
-inline void evalPointUncertainty(const PointType &pi, Eigen::Matrix3d &cov_point, const Pose &pose)
+inline void evalPointUncertainty(const PointType &pi, //在n雷达curr帧下
+                                 Eigen::Matrix3d &cov_point, //[out]
+                                 const Pose &pose) //主雷达到n雷达外参
 {
     // THETA: diag(P, Phi, Z) includes the translation, rotation, measurement uncertainty
     Eigen::Matrix<double, 9, 9> cov_input = Eigen::Matrix<double, 9, 9>::Zero();
