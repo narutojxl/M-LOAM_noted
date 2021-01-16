@@ -47,8 +47,8 @@ PointICloud::Ptr laser_cloud_full_res(new PointICloud());
 PointICloud::Ptr laser_cloud_outlier(new PointICloud());
 PointICloud::Ptr laser_cloud_outlier_ds(new PointICloud());
 
-PointICovCloud::Ptr laser_cloud_surf_from_map_cov(new PointICovCloud());
-PointICovCloud::Ptr laser_cloud_corner_from_map_cov(new PointICovCloud());
+PointICovCloud::Ptr laser_cloud_surf_from_map_cov(new PointICovCloud()); //local surf map
+PointICovCloud::Ptr laser_cloud_corner_from_map_cov(new PointICovCloud()); //local corner map
 PointICovCloud::Ptr laser_cloud_surf_from_map_cov_ds(new PointICovCloud());
 PointICovCloud::Ptr laser_cloud_corner_from_map_cov_ds(new PointICovCloud());
 
@@ -68,9 +68,9 @@ PointICloud::Ptr surrounding_keyframes_ds(new PointICloud());
 PointICloud::Ptr global_map_keyframes(new PointICloud());
 PointICloud::Ptr global_map_keyframes_ds(new PointICloud());
 
-std::vector<int> surrounding_existing_keyframes_id;
-std::vector<PointICovCloud::Ptr> surrounding_surf_cloud_keyframes;
-std::vector<PointICovCloud::Ptr> surrounding_corner_cloud_keyframes;
+std::vector<int> surrounding_existing_keyframes_id; //当期帧周围的关键帧index
+std::vector<PointICovCloud::Ptr> surrounding_surf_cloud_keyframes; //当期帧周围的关键帧 surf points转换到map下，即local surf map
+std::vector<PointICovCloud::Ptr> surrounding_corner_cloud_keyframes; //当期帧周围的关键帧 corner points转换到map下，即local corner map
 std::vector<PointICovCloud::Ptr> surf_cloud_keyframes_cov;  //所有keyframes surf points
 std::vector<PointICovCloud::Ptr> corner_cloud_keyframes_cov;//所有keyframes corner points
 std::vector<PointICovCloud::Ptr> outlier_cloud_keyframes_cov;//所有keyframes outlier points
@@ -239,7 +239,7 @@ void vector2Double()
 	para_pose[0] = pose_wmap_curr.t_(0);
 	para_pose[1] = pose_wmap_curr.t_(1);
 	para_pose[2] = pose_wmap_curr.t_(2);
-	para_pose[3] = pose_wmap_curr.q_.x();
+	para_pose[3] = pose_wmap_curr.q_.x(); //JPL conversion
 	para_pose[4] = pose_wmap_curr.q_.y();
 	para_pose[5] = pose_wmap_curr.q_.z();
 	para_pose[6] = pose_wmap_curr.q_.w();
@@ -316,7 +316,7 @@ void extractSurroundingKeyFrames()
 
             PointICovCloud::Ptr surf_trans(new PointICovCloud());
             cloudUCTAssociateToMap(*surf_cloud_keyframes_cov[key_ind], *surf_trans, pose_local, pose_ext);
-            surrounding_surf_cloud_keyframes.push_back(surf_trans);
+            surrounding_surf_cloud_keyframes.push_back(surf_trans); //关键帧points转换到map下, 且计算cov, 依次存放起来
 
             PointICovCloud::Ptr corner_trans(new PointICovCloud());
             cloudUCTAssociateToMap(*corner_cloud_keyframes_cov[key_ind], *corner_trans, pose_local, pose_ext);
@@ -338,7 +338,7 @@ void extractSurroundingKeyFrames()
     for (int i = 0; i < surrounding_existing_keyframes_ds->size(); i++)
     {
         int j = (int)surrounding_existing_keyframes_ds->points[i].intensity;
-        *laser_cloud_surf_from_map_cov += *surrounding_surf_cloud_keyframes[j];
+        *laser_cloud_surf_from_map_cov += *surrounding_surf_cloud_keyframes[j]; //构建local map(map由关键帧构成)
         *laser_cloud_corner_from_map_cov += *surrounding_corner_cloud_keyframes[j];
     }
 
@@ -346,7 +346,7 @@ void extractSurroundingKeyFrames()
     down_size_filter_surf_map_cov.setInputCloud(laser_cloud_surf_from_map_cov);
     down_size_filter_surf_map_cov.filter(*laser_cloud_surf_from_map_cov_ds);
     down_size_filter_corner_map_cov.setInputCloud(laser_cloud_corner_from_map_cov);
-    down_size_filter_corner_map_cov.filter(*laser_cloud_corner_from_map_cov_ds);
+    down_size_filter_corner_map_cov.filter(*laser_cloud_corner_from_map_cov_ds); //local map降采样
     // laser_cloud_surf_from_map_cov_ds = laser_cloud_surf_from_map_cov;
     // laser_cloud_corner_from_map_cov_ds = laser_cloud_corner_from_map_cov;
     printf("corner/surf: before ds: %lu, %lu; after ds: %lu, %lu\n", 
@@ -370,7 +370,7 @@ void downsampleCurrentScan()
     down_size_filter_outlier.filter(*laser_cloud_outlier_ds); //所有雷达curr帧，转到主雷达下 
 
     // propagate the extrinsic uncertainty on points
-    laser_cloud_surf_cov->clear(); //计算每个点的cov
+    laser_cloud_surf_cov->clear(); //所有雷达curr帧，转到主雷达下, 且计算每个点的cov
     laser_cloud_corner_cov->clear();
     laser_cloud_outlier_cov->clear();
 
@@ -379,7 +379,7 @@ void downsampleCurrentScan()
         int idx = int(point_ori.intensity); // indicate the lidar id， 见visualization.cpp::transformCloudFeature()
         PointI point_sel;
         Eigen::Matrix3d cov_point = Eigen::Matrix3d::Zero();
-        if (with_ua_flag)
+        if (with_ua_flag)//true
         {
             pointAssociateToMap(point_ori, point_sel, pose_ext[idx].inverse()); //point_sel: 在n雷达curr帧下
             evalPointUncertainty(point_sel, cov_point, pose_ext[idx]); //TODO(jxl): 传播外参的cov到点的不确定性
@@ -394,7 +394,7 @@ void downsampleCurrentScan()
         int idx = int(point_ori.intensity); // indicate the lidar id
         PointI point_sel;
         Eigen::Matrix3d cov_point = Eigen::Matrix3d::Zero();
-        if (with_ua_flag)
+        if (with_ua_flag)//true
         {
             pointAssociateToMap(point_ori, point_sel, pose_ext[idx].inverse());
             evalPointUncertainty(point_sel, cov_point, pose_ext[idx]);
@@ -409,7 +409,7 @@ void downsampleCurrentScan()
         int idx = int(point_ori.intensity); // indicate the lidar id
         PointI point_sel;
         Eigen::Matrix3d cov_point = Eigen::Matrix3d::Zero();
-        if (with_ua_flag)
+        if (with_ua_flag)//true
         {
             pointAssociateToMap(point_ori, point_sel, pose_ext[idx].inverse());
             evalPointUncertainty(point_sel, cov_point, pose_ext[idx]);
@@ -439,7 +439,7 @@ void scan2MapOptimization()
 
         // int max_iter = pose_keyframes_6d.size() <= 5 ? 5 : 2; // should have more iterations at the initial stage
         int max_iter = 2;
-        for (int iter_cnt = 0; iter_cnt < max_iter; iter_cnt++)
+        for (int iter_cnt = 0; iter_cnt < max_iter; iter_cnt++) //TODO(jxl): 两轮ceres
         {
             ceres::Problem problem;
             ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
@@ -448,7 +448,7 @@ void scan2MapOptimization()
 
             std::vector<double *> para_ids;
             std::vector<ceres::internal::ResidualBlock *> res_ids_proj;
-            PoseLocalParameterization *local_parameterization = new PoseLocalParameterization();
+            PoseLocalParameterization *local_parameterization = new PoseLocalParameterization(); //自定义参数块
             local_parameterization->setParameter();
             problem.AddParameterBlock(para_pose, SIZE_POSE, local_parameterization);
             para_ids.push_back(para_pose);
@@ -457,13 +457,15 @@ void scan2MapOptimization()
             // evaluate the full hessian matrix
             if (iter_cnt == 0)
             {
-                if (frame_cnt % 10 == 0)
+                if (frame_cnt % 10 == 0) //每隔10帧重新计算一次gf_ratio_cur
                 {
                     int total_feat_num = 0;
                     Eigen::Matrix<double, 6, 6> mat_H = Eigen::Matrix<double, 6, 6>::Identity() * 1e-6;
                     if (POINT_PLANE_FACTOR)
                         afs.evalFullHessian(kdtree_surf_from_map, *laser_cloud_surf_from_map_cov_ds,
                                             *laser_cloud_surf_cov, pose_wmap_curr, 's', mat_H, total_feat_num);
+                        //mat_H：累加curr surf points每个点对curr pose的hessian矩阵
+
                     if (POINT_EDGE_FACTOR)
                         afs.evalFullHessian(kdtree_corner_from_map, *laser_cloud_corner_from_map_cov_ds,
                                             *laser_cloud_corner_cov, pose_wmap_curr, 'c', mat_H, total_feat_num);
@@ -472,8 +474,10 @@ void scan2MapOptimization()
                     // std::cout << total_feat_num << " " << std::log(1.0 * total_feat_num) << std::endl;
                     // double gf_deg_factor = common::logDet(mat_H, true) - mat_H.rows() * std::log(1.0 * total_feat_num);
                     double gf_deg_factor = common::logDet(mat_H, true);
+                    //TODO(jxl): J^T*J分解，这块打分的依据是什么？ https://github.com/gogojjh/M-LOAM/issues/10
+
                     gf_deg_factor_list.push_back(gf_deg_factor);
-                    if (FLAGS_gf_method == "wo_gf") 
+                    if (FLAGS_gf_method == "wo_gf") //feature选择方法
                     {
                         gf_ratio_cur = 1.0;
                     }
@@ -599,7 +603,7 @@ void scan2MapOptimization()
             std::cout << summary.BriefReport() << std::endl;
             printf("mapping solver time: %fms\n", solver_timer.Stop() * 1000);
 
-            if (iter_cnt == max_iter - 1)
+            if (iter_cnt == max_iter - 1) //最后一次ceres
             {
                 if (with_ua_flag)
                 {
@@ -1067,15 +1071,15 @@ void process()
 			transformAssociateToMap(); //结合当前帧在odom位姿和之前计算的T_map_odom, 预测当前帧在map下位姿
 
             common::timing::Timer extract_kf_timer("mapping_extract_kf");
-            extractSurroundingKeyFrames();
+            extractSurroundingKeyFrames(); //构建local map,计算每个点的cov
             printf("extract surrounding keyframes: %fms\n", extract_kf_timer.Stop() * 1000);
 
             common::timing::Timer dscs_timer("mapping_dscs");
-            downsampleCurrentScan(); //对点云降采样，传播外参的cov到点的cov
+            downsampleCurrentScan(); //对curr点云降采样，计算点的cov(传播外参的cov到点的cov)
             // printf("downsample current scan time: %fms\n", t_dscs.toc());
 
             common::timing::Timer opti_timer("mapping_opti");
-            scan2MapOptimization();
+            scan2MapOptimization(); //laser 残差，对curr帧在map下位姿refine
             printf("optimization time: %fms\n", opti_timer.Stop() * 1000);
 
 			transformUpdate(); //计算T_map_odom
@@ -1119,7 +1123,7 @@ void process()
 }
 
 void cloudUCTAssociateToMap(const PointICovCloud &cloud_local, //关键帧points
-                            PointICovCloud &cloud_global, //[out]
+                            PointICovCloud &cloud_global, //[out]关键帧points转换到map下, 且计算cov
                             const Pose &pose_global,  //关键帧位姿
                             const vector<Pose> &pose_ext) //外参
 {
@@ -1127,7 +1131,7 @@ void cloudUCTAssociateToMap(const PointICovCloud &cloud_local, //关键帧points
     std::vector<Pose> pose_compound(NUM_OF_LASER);
     for (size_t n = 0; n < NUM_OF_LASER; n++) 
     {
-        compoundPoseWithCov(pose_global, pose_ext[n], pose_compound[n]);
+        compoundPoseWithCov(pose_global, pose_ext[n], pose_compound[n]); //关键帧n号雷达的位姿和cov  //TODO(jxl): cov的计算
         // if (n == IDX_REF) continue;
         // std::cout << "pose global: " << pose_global << std::endl;
         // std::cout << pose_global.cov_ << std::endl;
@@ -1148,14 +1152,14 @@ void cloudUCTAssociateToMap(const PointICovCloud &cloud_local, //关键帧points
         int ind = (int)point_ori.intensity;
         PointIWithCov point_sel, point_cov;
         Eigen::Matrix3d cov_point = Eigen::Matrix3d::Zero();
-        if (with_ua_flag)
+        if (with_ua_flag) //true
         {
-            pointAssociateToMap(point_ori, point_sel, pose_ext[ind].inverse());
-            evalPointUncertainty(point_sel, cov_point, pose_compound[ind]); 
+            pointAssociateToMap(point_ori, point_sel, pose_ext[ind].inverse()); //point_sel: 在n雷达下
+            evalPointUncertainty(point_sel, cov_point, pose_compound[ind]); //TODO(jxl): cov的计算
             if (cov_point.trace() > TRACE_THRESHOLD_MAPPING) continue;
         }
-        pointAssociateToMap(point_ori, point_cov, pose_global);
-        updateCov(point_cov, cov_point);
+        pointAssociateToMap(point_ori, point_cov, pose_global);//关键帧在map下points
+        updateCov(point_cov, cov_point); //把计算的cov赋给point_cov
         cloud_global[cloud_size] = point_cov;
         cloud_size++;
     }

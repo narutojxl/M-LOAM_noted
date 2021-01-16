@@ -18,7 +18,7 @@
     
     <arg name="with_ua" default="true" /> <!-- awareness of uncertainty propagation-->    
     <arg name="gf_method" default="wo_gf" /> <!-- gd_fix, gd_float, rnd, fps, wo_gf-->
-    <arg name="gf_ratio_ini" default="1.0" />
+    <arg name="gf_ratio_ini" default="1.0" /> <!--当前帧和local map匹配时，默认的good feature比例-->
 
     <arg name="config_file" default="$(find mloam)/config/jxl_config_handheld.yaml" />
     <group if="$(arg run_mloam)">

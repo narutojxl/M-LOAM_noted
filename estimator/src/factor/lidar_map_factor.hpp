@@ -60,7 +60,7 @@ public:
 				Eigen::Matrix<double, 1, 6> jaco; // [dy/dt, dy/dq, 1]
 
 				jaco.leftCols<3>() = w.transpose();
-				jaco.rightCols<3>() = -w.transpose() * R * Utility::skewSymmetric(point_);
+				jaco.rightCols<3>() = -w.transpose() * R * Utility::skewSymmetric(point_); //右扰动
 
 				jacobian_pose.setZero();
 				jacobian_pose.leftCols<6>() = sqrt_info_ * jaco;
@@ -163,7 +163,7 @@ public:
 
                 Eigen::Matrix<double, 1, 3> eta = 1.0 / de.norm() * nu.normalized().transpose();
                 jaco.leftCols<3>() = -eta * Utility::skewSymmetric(lpa - lpb);
-                jaco.rightCols<3>() = eta * Utility::skewSymmetric(lpa - lpb) * R * Utility::skewSymmetric(point_);
+                jaco.rightCols<3>() = eta * Utility::skewSymmetric(lpa - lpb) * R * Utility::skewSymmetric(point_); //右扰动
 
                 jacobian_pose.setZero();
                 jacobian_pose.leftCols<6>() = sqrt_info_ * jaco;
@@ -236,6 +236,7 @@ private:
 
 
 // ****************************************************************
+//没有使用
 // calculate distrance from point to plane (using normal)
 class LidarMapEdgeFactorVector : public ceres::SizedCostFunction<3, 7>
 {

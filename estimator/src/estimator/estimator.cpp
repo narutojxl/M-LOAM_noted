@@ -1430,6 +1430,7 @@ void Estimator::goodFeatureMatching(const pcl::KdTreeFLANN<PointI>::Ptr &kdtree_
     size_t size_rnd_subset = static_cast<size_t>(1.0 * num_all_features / num_use_features);
     Eigen::Matrix<double, 6, 6> sub_mat_H = Eigen::Matrix<double, 6, 6>::Identity() * 1e-6;
     size_t num_sel_features = 0; //正在挑选出第几个好point
+    
     common::timing::Timer gfm_timer("odom_match_feat");
 
     size_t n_neigh = 5;

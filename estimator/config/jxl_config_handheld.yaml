@@ -152,9 +152,9 @@ skip_num_odom_pub: 2 #每隔几帧发布一次前端的scans
 map_corner_res: 0.2
 map_surf_res: 0.4  #降采样voxel体素大小
 map_outlier_res: 0.8
-map_sur_kf_res: 1.0
-map_eig_thre: 100
-map_deg_thre: 42
+map_sur_kf_res: 1.0  #构成local map的keyframes降采样分辨率
+map_eig_thre: 100  #判断解退化时的阈值
+map_deg_thre: 42   #当前帧和local map匹配时: 对当前帧所有points打分后的阈值
 
 distance_keyframes: 1.0  #保存关键帧距离阈值，单位m
 orientation_keyframes: 1.0   #保存关键帧角度阈值, 单位度

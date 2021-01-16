@@ -127,16 +127,16 @@ class ActiveFeatureSelection
 {
 public:
     // ****************** good feature selection
-    void evaluateFeatJacobianMatching(const Pose &pose_local,
-                                      PointPlaneFeature &feature,
-                                      const Eigen::Matrix3d &cov_matrix)
+    void evaluateFeatJacobianMatching(const Pose &pose_local, //curr frame's pose in map
+                                      PointPlaneFeature &feature, //source point in curr frame and the correspondances in local map
+                                      const Eigen::Matrix3d &cov_matrix)//source point's cov
     {
         double **param = new double *[1];
         param[0] = new double [SIZE_POSE];
         param[0][0] = pose_local.t_(0);
         param[0][1] = pose_local.t_(1);
         param[0][2] = pose_local.t_(2);
-        param[0][3] = pose_local.q_.x();
+        param[0][3] = pose_local.q_.x(); //JPL
         param[0][4] = pose_local.q_.y();
         param[0][5] = pose_local.q_.z();
         param[0][6] = pose_local.q_.w();
@@ -156,7 +156,7 @@ public:
         }
 
         double *rho = new double[3];
-        double sqr_error = res[0] * res[0] + res[1] * res[1] + res[0] * res[0];
+        double sqr_error = res[0] * res[0] + res[1] * res[1] + res[0] * res[0]; //TODO(jxl): res[1]不存在
         loss_function_->Evaluate(sqr_error, rho);
 
         Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> mat_jacobian(jaco[0]);
@@ -173,12 +173,12 @@ public:
         delete[] param;
     }
 
-    void evalFullHessian(const pcl::KdTreeFLANN<PointIWithCov>::Ptr &kdtree_from_map,
-                         const PointICovCloud &laser_map,
-                         const PointICovCloud &laser_cloud,
-                         const Pose &pose_local,
-                         const char feature_type,
-                         Eigen::Matrix<double, 6, 6> &mat_H,
+    void evalFullHessian(const pcl::KdTreeFLANN<PointIWithCov>::Ptr &kdtree_from_map, //local map kdtree
+                         const PointICovCloud &laser_map, //local map
+                         const PointICovCloud &laser_cloud, //curr points
+                         const Pose &pose_local, //curr frame's pose in map
+                         const char feature_type, //surf: 's', corner: 'c'
+                         Eigen::Matrix<double, 6, 6> &mat_H, //hessian matrix
                          int &feat_num)
     {
         size_t num_all_features = laser_cloud.size();
@@ -211,8 +211,8 @@ public:
             }
             if (!b_match) continue;
             Eigen::Matrix3d cov_matrix;
-            extractCov(laser_cloud.points[i], cov_matrix);
-            evaluateFeatJacobianMatching(pose_local, all_features[i], cov_matrix);
+            extractCov(laser_cloud.points[i], cov_matrix); //点的cov赋给cov_matrix
+            evaluateFeatJacobianMatching(pose_local, all_features[i], cov_matrix); //计算每个点的残差对pose的雅克比
             const Eigen::MatrixXd &jaco = all_features[i].jaco_;
             mat_H = mat_H + jaco.transpose() * jaco;
             // v_jaco.push_back(jaco);
@@ -226,15 +226,17 @@ public:
         // fout.close();
     }
 
-    void goodFeatureMatching(const pcl::KdTreeFLANN<PointIWithCov>::Ptr &kdtree_from_map,
-                             const PointICovCloud &laser_map,
-                             const PointICovCloud &laser_cloud,
-                             const Pose &pose_local,
-                             std::vector<PointPlaneFeature> &all_features,
-                             std::vector<size_t> &sel_feature_idx,
+
+    //跟Estimator::goodFeatureMatching()有一些相同的地方
+    void goodFeatureMatching(const pcl::KdTreeFLANN<PointIWithCov>::Ptr &kdtree_from_map, //local map kdtree
+                             const PointICovCloud &laser_map, //local map
+                             const PointICovCloud &laser_cloud, //curr frame points
+                             const Pose &pose_local, //curr pose
+                             std::vector<PointPlaneFeature> &all_features, //[out], all_features[i]: index = i point对应的correspondance
+                             std::vector<size_t> &sel_feature_idx, //[out],好point在点云中的idx放到sel_feature_idx[]
                              const char feature_type,
                              const string gf_method,
-                             const double gf_ratio,
+                             const double gf_ratio, //good feature比例
                              Eigen::Matrix<double, 6, 6> &sub_mat_H)
     {
         size_t num_all_features = laser_cloud.size();
@@ -254,9 +256,9 @@ public:
         size_t num_rnd_que;
         TicToc t_sel_feature;
         size_t n_neigh = 5;
-        if (gf_method == "wo_gf")
+        if (gf_method == "wo_gf") //gf_ratio == 1
         {
-            for (size_t j = 0; j < all_feature_idx.size(); j++)
+            for (size_t j = 0; j < all_feature_idx.size(); j++) //按顺序来
             {
                 size_t que_idx = all_feature_idx[j];
                 b_match = false;
@@ -264,12 +266,12 @@ public:
                 {
                     b_match = f_extract.matchSurfPointFromMap(kdtree_from_map,
                                                               laser_map,
-                                                              laser_cloud.points[que_idx],
+                                                              laser_cloud.points[que_idx], //point
                                                               pose_local,
-                                                              all_features[que_idx],
+                                                              all_features[que_idx], //correspondance
                                                               que_idx,
                                                               n_neigh,
-                                                              false);
+                                                              false); //计算correspondance
                 }
                 else if (feature_type == 'c')
                 {
@@ -282,13 +284,13 @@ public:
                                                                 n_neigh,
                                                                 false);
                 }
-                if (b_match)
+                if (b_match) //找到了correspondance
                 {
                     Eigen::Matrix3d cov_matrix;
                     extractCov(laser_cloud.points[que_idx], cov_matrix);
                     evaluateFeatJacobianMatching(pose_local,
                                                  all_features[que_idx],
-                                                 cov_matrix);
+                                                 cov_matrix); //计算每个点的残差对pose的雅克比
                     const Eigen::MatrixXd &jaco = all_features[que_idx].jaco_;
                     sub_mat_H += jaco.transpose() * jaco;
 
@@ -309,7 +311,7 @@ public:
                 //     all_feature_idx.size() == 0)
                 //     break;
                     
-                size_t j = rgi_.geneRandUniform(0, all_feature_idx.size() - 1);
+                size_t j = rgi_.geneRandUniform(0, all_feature_idx.size() - 1); //随机挑选
                 size_t que_idx = all_feature_idx[j];
                 b_match = false;
                 if (feature_type == 's')
@@ -344,7 +346,7 @@ public:
                     const Eigen::MatrixXd &jaco = all_features[que_idx].jaco_;
                     sub_mat_H += jaco.transpose() * jaco;
 
-                    sel_feature_idx[num_sel_features] = que_idx;
+                    sel_feature_idx[num_sel_features] = que_idx; //TODO(jxl): rnd时，要求gf_ratio == 1, 否则sel_feature_idx[]可能会越界
                     num_sel_features++;
                 }
                 all_feature_idx.erase(all_feature_idx.begin() + j);
