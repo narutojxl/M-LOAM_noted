@@ -1430,7 +1430,7 @@ void Estimator::goodFeatureMatching(const pcl::KdTreeFLANN<PointI>::Ptr &kdtree_
     size_t size_rnd_subset = static_cast<size_t>(1.0 * num_all_features / num_use_features);
     Eigen::Matrix<double, 6, 6> sub_mat_H = Eigen::Matrix<double, 6, 6>::Identity() * 1e-6;
     size_t num_sel_features = 0; //正在挑选出第几个好point
-    
+
     common::timing::Timer gfm_timer("odom_match_feat");
 
     size_t n_neigh = 5;
@@ -1477,17 +1477,13 @@ void Estimator::goodFeatureMatching(const pcl::KdTreeFLANN<PointI>::Ptr &kdtree_
         {
             if ((num_sel_features >= num_use_features) ||
                 (all_feature_idx.size() == 0) ||
-                (gfm_timer.GetCountTime() * 1000 > MAX_FEATURE_SELECT_TIME)) //const 7ms
+                (gfm_timer.GetCountTime() * 1000 > MAX_FEATURE_SELECT_TIME)) //const 7ms //TODO(jxl): 作者为了实时性，可能会忽略某些point，实际运行时间得验证。
                     break;
 
             std::priority_queue<FeatureWithScore, 
                                 std::vector<FeatureWithScore>, 
                                 std::less<FeatureWithScore>> heap_subset; //分数从大到小，优先级由高到低，所以FeatureWithScore需要重载operator < 
-           //在挑选第1个好point时，heap_subset[]里已经存放了挑选完第0个好point剩余点的score, jacobian
-           //在挑选第2个好point时，heap_subset[]里已经存放了挑选完第1个好point剩余点的score, jacobian
-           //依次类推
-           //比如第0个好point: 挑选的j集合为{0 1 2 3 4}，1号为好point，heap_subset里{0 1 2 3 4}
-           //比如第1个好point: 挑选的j集合为{0 2 3 4 5}，heap_subset里{0 1 2 3 4 5}, 0号为好point，heap_subset里剩余{0 1 2 3 4 5}
+            //在每次循环挑选每个好point时，heap_subset会重新定义，即初始内容为空
 
             while (true)
             {
@@ -1499,19 +1495,19 @@ void Estimator::goodFeatureMatching(const pcl::KdTreeFLANN<PointI>::Ptr &kdtree_
                     j = rgi_.geneRandUniform(0, all_feature_idx.size() - 1);
                     if (feature_visited[j] < int(num_sel_features))
                     {
-                        feature_visited[j] = int(num_sel_features);
+                        feature_visited[j] = int(num_sel_features); //feature_visited[j, l, m] = n, 意思是：在挑选第n个好point时，<j, l, m>构成了heap_subset[]的集合
                         break;
                     }
                     num_rnd_que++;
                 }
-                if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || gfm_timer.GetCountTime() * 1000 > MAX_FEATURE_SELECT_TIME)
+                if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || gfm_timer.GetCountTime() * 1000 > MAX_FEATURE_SELECT_TIME) //TODO(jxl): 作者为了实时性，可能会忽略某些point，实际运行时间得验证。
                     break;
 
                 size_t que_idx = all_feature_idx[j];
 
                 //在本次挑选第i个好point时，即使挑选到之前曾经处理过的point，也不会重复计算jacobian.
                 //因为PointPlaneFeature的构造函数默认type为‘n’，如果之前处理过该point，类型就变为‘s’,或者‘c’。
-                //如果没有correspondance, 早已经在之前步骤中从all_feature_idx[]中移除了,本次不会选到之前曾经处理过的point
+                //如果没有correspondance, 早已经在之前循环中从all_feature_idx[]中移除了,本次不会选到
                 if (all_features[que_idx].type_ == 'n') //这句妙啊！
                 {
                     b_match = false;
@@ -1579,10 +1575,10 @@ void Estimator::goodFeatureMatching(const pcl::KdTreeFLANN<PointI>::Ptr &kdtree_
                     // printf("position: %lu, num: %lu\n", position, num_rnd_que);
                     break;
                 }
-                if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || gfm_timer.GetCountTime() * 1000 > MAX_FEATURE_SELECT_TIME)
+                if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || gfm_timer.GetCountTime() * 1000 > MAX_FEATURE_SELECT_TIME) //TODO(jxl): 作者为了实时性，可能会忽略某些point，实际运行时间得验证。
                     break;
             }
-            if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || gfm_timer.GetCountTime() * 1000 > MAX_FEATURE_SELECT_TIME)
+            if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || gfm_timer.GetCountTime() * 1000 > MAX_FEATURE_SELECT_TIME) //TODO(jxl): 作者为了实时性，可能会忽略某些point，实际运行时间得验证。
             {
                 std::cout << "odometry [goodFeatureMatching]: early termination!" << std::endl;
                 LOG(INFO) << "early termination: feature_type " << feature_type << ", " << num_rnd_que << ", " << gfm_timer.GetCountTime() * 1000;

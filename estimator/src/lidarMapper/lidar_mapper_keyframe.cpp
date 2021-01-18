@@ -121,7 +121,7 @@ std::vector<Eigen::Matrix<double, 6, 6> > d_eigvec_list;
 
 Eigen::Matrix<double, 6, 6> mat_P;
 
-std::vector<double> gf_logdet_H_list;
+std::vector<double> gf_logdet_H_list; //good feature points累加的Hessian矩阵
 std::vector<double> gf_deg_factor_list;
 std::vector<std::vector<double> > mapping_sp_list;
 std::vector<double> total_match_feature;
@@ -148,7 +148,9 @@ void transformAssociateToMap()
 	// q_w_curr = q_wmap_wodom * q_wodom_curr;
 	// t_w_curr = q_wmap_wodom * t_wodom_curr + t_wmap_wodom;
 	pose_wmap_curr = pose_wmap_wodom * pose_wodom_curr;
-	// std::cout << "pose_wmap_curr: " << pose_wmap_curr << std::endl;
+    //pose_wmap_wodom： 上一帧和local map匹配得到的T_map_odom
+    //pose_wodom_curr: 前端中滑窗对相邻两scan-to-scan匹配得到的laser odom refine后得到的curr frame in odom
+    //pose_wmap_curr:  curr frame in map 预测值
 }
 
 // update the transformation between map's world to odom's world after map
@@ -157,7 +159,8 @@ void transformUpdate()
 	// q_wmap_wodom = q_w_curr * q_wodom_curr.inverse();
 	// t_wmap_wodom = t_w_curr - q_wmap_wodom * t_wodom_curr;
 	pose_wmap_wodom = pose_wmap_curr * pose_wodom_curr.inverse();
-	// std::cout << "pose_wmap_wodom: " << pose_wmap_wodom << std::endl;
+    //pose_wmap_curr: 在初值的基础上，curr scan与local map匹配后refine的值, curr frame in map
+    //pose_wmap_wodom: 本帧结束末尾，更新T_map_odom，为下一帧做准备
 }
 
 void laserCloudSurfLastHandler(const sensor_msgs::PointCloud2ConstPtr &laser_cloud_surf_last_msg)
@@ -457,7 +460,7 @@ void scan2MapOptimization()
             // evaluate the full hessian matrix
             if (iter_cnt == 0)
             {
-                if (frame_cnt % 10 == 0) //每隔10帧重新计算一次gf_ratio_cur
+                if (frame_cnt % 10 == 0) //每隔10帧重新计算一次好points的比例 gf_ratio_cur
                 {
                     int total_feat_num = 0;
                     Eigen::Matrix<double, 6, 6> mat_H = Eigen::Matrix<double, 6, 6>::Identity() * 1e-6;
@@ -505,7 +508,7 @@ void scan2MapOptimization()
             std::vector<size_t> sel_surf_feature_idx, sel_corner_feature_idx;
             size_t surf_num = 0, corner_num = 0;
             common::timing::Timer gfs_timer("mapping_match_feat");
-            Eigen::Matrix<double, 6, 6> sub_mat_H;
+            Eigen::Matrix<double, 6, 6> sub_mat_H;  
             if (POINT_EDGE_FACTOR)
             {
                 sub_mat_H = Eigen::Matrix<double, 6, 6>::Identity() * 1e-6;
@@ -513,12 +516,12 @@ void scan2MapOptimization()
                                         *laser_cloud_corner_from_map_cov_ds,
                                         *laser_cloud_corner_cov,
                                         pose_wmap_curr,
-                                        all_corner_features,
-                                        sel_corner_feature_idx,
+                                        all_corner_features, //all_corner_features[i]: index = i point对应的correspondance, 所有point都有, 如果有的话。
+                                        sel_corner_feature_idx, //第i个好corner point在点云中的idx放到sel_corner_feature_idx[i]
                                         'c',
                                         FLAGS_gf_method,
                                         gf_ratio_cur, 
-                                        sub_mat_H);
+                                        sub_mat_H); //累加好points的残差对pose的雅克比
                 corner_num = sel_corner_feature_idx.size();
             }
             if (POINT_PLANE_FACTOR)
@@ -539,7 +542,8 @@ void scan2MapOptimization()
             gf_logdet_H_list.push_back(common::logDet(sub_mat_H, true));
             printf("matching features time: %fms\n", gfs_timer.Stop() * 1000);
             // printf("matching surf & corner num: %lu, %lu\n", surf_num, corner_num);
-
+            
+            //把好points的残差加入ceres
             for (const size_t &fid : sel_surf_feature_idx)
             {
                 const PointPlaneFeature &feature = all_surf_features[fid];
@@ -550,7 +554,7 @@ void scan2MapOptimization()
                 else 
                     cov_matrix = COV_MEASUREMENT;
                 LidarMapPlaneNormFactor *f = new LidarMapPlaneNormFactor(feature.point_, feature.coeffs_, cov_matrix);
-                ceres::internal::ResidualBlock *res_id = problem.AddResidualBlock(f, loss_function, para_pose);
+                ceres::internal::ResidualBlock *res_id = problem.AddResidualBlock(f, loss_function, para_pose); //对当前帧在map下的初值进行refine
                 res_ids_proj.push_back(res_id);
             }
 
@@ -583,9 +587,12 @@ void scan2MapOptimization()
             e_option.residual_blocks = res_ids_proj;
             ceres::CRSMatrix jaco;
             problem.Evaluate(e_option, nullptr, nullptr, nullptr, &jaco);
+
             Eigen::Matrix<double, 6, 6> mat_H; // mat_H / 134 = normlized_mat_H
-            evalHessian(jaco, mat_H);
+            evalHessian(jaco, mat_H); //所有残差的hessian
             evalDegenracy(mat_H, local_parameterization); // the hessian matrix is already normized to evaluate degeneracy
+            //判断解是否发生退化
+
             // evalDegenracy(mat_H / 25, local_parameterization); // the hessian matrix is already normized to evaluate degeneracy
 
             // *********************************************************
@@ -593,13 +600,14 @@ void scan2MapOptimization()
             ceres::Solver::Summary summary;
             ceres::Solver::Options options;
             options.linear_solver_type = ceres::DENSE_SCHUR;
-            options.max_num_iterations = 30;
+            options.max_num_iterations = 30; //TODO(jxl): 后端迭代30次
             options.minimizer_progress_to_stdout = false;
             options.check_gradients = false;
             options.gradient_check_relative_precision = 1e-4;
             // options.update_state_every_iteration = false;
             // options.max_solver_time_in_seconds = 0.04;
-            ceres::Solve(options, &problem, &summary);
+
+            ceres::Solve(options, &problem, &summary); //求解时会考虑到是否发生退化
             std::cout << summary.BriefReport() << std::endl;
             printf("mapping solver time: %fms\n", solver_timer.Stop() * 1000);
 
@@ -635,7 +643,8 @@ void scan2MapOptimization()
             printf("-------------------------------------\n");
         }
         std::cout << "optimization result: " << pose_wmap_curr << std::endl;
-        pose_wmap_curr.cov_ = cov_mapping;
+        pose_wmap_curr.cov_ = cov_mapping; //当前帧在map下的位姿 
+        //TODO(jxl): 直接使用ceres接口获取
     }
     else
     {
@@ -1079,10 +1088,10 @@ void process()
             // printf("downsample current scan time: %fms\n", t_dscs.toc());
 
             common::timing::Timer opti_timer("mapping_opti");
-            scan2MapOptimization(); //laser 残差，对curr帧在map下位姿refine
+            scan2MapOptimization(); //laser残差(挑选出的好point的残差)，对curr帧在map下位姿refine
             printf("optimization time: %fms\n", opti_timer.Stop() * 1000);
 
-			transformUpdate(); //计算T_map_odom
+			transformUpdate(); //更新T_map_odom
 
             common::timing::Timer skf_timer("mapping_save_kf");
             saveKeyframe(); //保存关键帧pose，和相应的surf, corner, outlier points
@@ -1177,13 +1186,15 @@ void evalHessian(const ceres::CRSMatrix &jaco, Eigen::Matrix<double, 6, 6> &mat_
 	mat_H = mat_JtJ.block(0, 0, 6, 6);  // normalized the hessian matrix for pair uncertainty evaluation
 }
 
+
+
 // TODO: still have some bugs
 void evalDegenracy(const Eigen::Matrix<double, 6, 6> &mat_H, PoseLocalParameterization *local_parameterization)
 {
 	Eigen::SelfAdjointEigenSolver<Eigen::Matrix<double, 6, 6> > esolver(mat_H);
-	Eigen::Matrix<double, 1, 6> mat_E = esolver.eigenvalues().real();	// 6*1
+	Eigen::Matrix<double, 1, 6> mat_E = esolver.eigenvalues().real();	// 6*1， 特征值从小到大
 	Eigen::Matrix<double, 6, 6> mat_V_f = esolver.eigenvectors().real(); // 6*6, column is the corresponding eigenvector
-	Eigen::Matrix<double, 6, 6> mat_V_p = mat_V_f;
+	Eigen::Matrix<double, 6, 6> mat_V_p = mat_V_f;  //和Estimator::evalDegenracy()一样
 	for (size_t j = 0; j < mat_E.cols(); j++)
 	{
 		if (mat_E(0, j) < MAP_EIG_THRE)

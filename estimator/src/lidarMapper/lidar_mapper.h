@@ -122,6 +122,8 @@ void evalHessian(const ceres::CRSMatrix &jaco, Eigen::Matrix<double, 6, 6> &mat_
 
 void evalDegenracy(const Eigen::Matrix<double, 6, 6> &mat_H, PoseLocalParameterization *local_parameterization);
 
+
+
 // ****************** active feature selection
 class ActiveFeatureSelection
 {
@@ -233,18 +235,18 @@ public:
                              const PointICovCloud &laser_cloud, //curr frame points
                              const Pose &pose_local, //curr pose
                              std::vector<PointPlaneFeature> &all_features, //[out], all_features[i]: index = i point对应的correspondance
-                             std::vector<size_t> &sel_feature_idx, //[out],好point在点云中的idx放到sel_feature_idx[]
+                             std::vector<size_t> &sel_feature_idx, //[out], 第i个好point在点云中的idx放到sel_feature_idx[i]
                              const char feature_type,
-                             const string gf_method,
+                             const string gf_method, //挑选好points的方法
                              const double gf_ratio, //good feature比例
-                             Eigen::Matrix<double, 6, 6> &sub_mat_H)
+                             Eigen::Matrix<double, 6, 6> &sub_mat_H)//[out], 累加好points的残差对pose的雅克比
     {
         size_t num_all_features = laser_cloud.size();
         all_features.resize(num_all_features);
 
         std::vector<size_t> all_feature_idx(num_all_features);
         std::vector<int> feature_visited(num_all_features, -1);
-        std::iota(all_feature_idx.begin(), all_feature_idx.end(), 0);
+        std::iota(all_feature_idx.begin(), all_feature_idx.end(), 0); //初始化为0,1，2，...
 
         size_t num_use_features;
         num_use_features = static_cast<size_t>(num_all_features * gf_ratio);
@@ -305,7 +307,7 @@ public:
             {
                 if ((num_sel_features >= num_use_features) ||
                     (all_feature_idx.size() == 0) ||
-                    (t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME))
+                    (t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME)) //TODO(jxl): 作者为了实时性，可能会忽略某些point，实际运行时间得验证。
                     break;
                 // if (num_sel_features >= num_use_features ||
                 //     all_feature_idx.size() == 0)
@@ -346,20 +348,20 @@ public:
                     const Eigen::MatrixXd &jaco = all_features[que_idx].jaco_;
                     sub_mat_H += jaco.transpose() * jaco;
 
-                    sel_feature_idx[num_sel_features] = que_idx; //TODO(jxl): rnd时，要求gf_ratio == 1, 否则sel_feature_idx[]可能会越界
+                    sel_feature_idx[num_sel_features] = que_idx; 
                     num_sel_features++;
                 }
-                all_feature_idx.erase(all_feature_idx.begin() + j);
+                all_feature_idx.erase(all_feature_idx.begin() + j); //对visited point置标记
             }
         }
         else if (gf_method == "fps")
         {
             size_t que_idx;
-            size_t k = rgi_.geneRandUniform(0, all_feature_idx.size() - 1); // randomly select a starting point
+            size_t k = rgi_.geneRandUniform(0, all_feature_idx.size() - 1); // randomly select a starting point, 随机选择一个开始的point
             feature_visited[k] = 1;
-            size_t cnt_visited = 1;
+            size_t cnt_visited = 1; //这个变量没什么用处
             PointIWithCov point_old = laser_cloud.points[k]; 
-            b_match = f_extract.matchSurfPointFromMap(kdtree_from_map,
+            b_match = f_extract.matchSurfPointFromMap(kdtree_from_map, //TODO(jxl): 怎么没有区分feature type
                                                       laser_map,
                                                       point_old,
                                                       pose_local,
@@ -370,23 +372,23 @@ public:
             if (b_match)
             {
                 sel_feature_idx[num_sel_features] = k;
-                num_sel_features++;
+                num_sel_features++; //TODO(jxl): 在末尾也自加了，这要自加吗？
             }            
 
             std::vector<float> dist(num_all_features, 1e5); // record the minimum distance of each point in set A to each point in set B
-            while (true)
+            while (true)//对整个raw point的遍历发生在该while里
             {
                 if ((num_sel_features >= num_use_features) ||
                     (all_feature_idx.size() == 0) ||
-                    (t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME))
+                    (t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME)) //TODO(jxl): 作者为了实时性，可能会忽略某些point，实际运行时间得验证。
                     break;
                 // if ((num_sel_features >= num_use_features) ||
                 //     (all_feature_idx.size() == 0) ||
                 //     (cnt_visited == num_all_features))
                 //     break;
 
-                float best_d = -1;
-                size_t best_j = 1;
+                float best_d = -1; //在还没有visited raw points中距离k point最远的point 之间的距离
+                size_t best_j = 1; //在还没有visited raw points中距离k point最远的point index
                 for (size_t j = 0; j < num_all_features; j++)
                 {
                     if (feature_visited[j] == 1) continue;
@@ -395,12 +397,12 @@ public:
                                                   point_old.y - point_new.y,
                                                   point_old.z - point_new.z));
                     float d2 = std::min(d, dist[j]);
-                    dist[j] = d2;
-                    best_j = d2 > best_d ? j : best_j;
+                    dist[j] = d2; //dist[j]: 存储j point与k point之间的距离
+                    best_j = d2 > best_d ? j : best_j; //TODO(jxl): 为何找最远的point？
                     best_d = d2 > best_d ? d2 : best_d;
                 }
                 que_idx = best_j;
-                point_old = laser_cloud.points[que_idx];
+                point_old = laser_cloud.points[que_idx]; //old point不断在更新
                 feature_visited[que_idx] = 1;
                 cnt_visited++;
 
@@ -435,21 +437,21 @@ public:
                                                  all_features[que_idx],
                                                  cov_matrix);
                     const Eigen::MatrixXd &jaco = all_features[que_idx].jaco_;
-                    sub_mat_H += jaco.transpose() * jaco;
+                    sub_mat_H += jaco.transpose() * jaco; //距离old point最远point的雅克比，即整个雅克比是由距离自己point最远的point的雅克比构成
 
                     sel_feature_idx[num_sel_features] = que_idx;
                     num_sel_features++;
                 }            
             }
         }
-        else if (gf_method == "gd_fix" || gf_method == "gd_float")
+        else if (gf_method == "gd_fix" || gf_method == "gd_float") //跟Estimator::goodFeatureMatching()比例不等于1.0时，逻辑完全相同
         {
             stringstream ss;
             while (true)
             {
                 if ((num_sel_features >= num_use_features) ||
                     (all_feature_idx.size() == 0) || 
-                    (t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME))
+                    (t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME)) //TODO(jxl): 作者为了实时性，可能会忽略某些point，实际运行时间得验证。
                     break;
                 // if ((num_sel_features >= num_use_features * 0.8) && 
                 //     (t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME))
@@ -477,7 +479,7 @@ public:
                         }
                         num_rnd_que++;
                     }
-                    if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME)
+                    if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME) //TODO(jxl): 作者为了实时性，可能会忽略某些point，实际运行时间得验证。
                         break;
 
                     size_t que_idx = all_feature_idx[j];
@@ -523,6 +525,8 @@ public:
 
                     const Eigen::MatrixXd &jaco = all_features[que_idx].jaco_;
                     cur_det = common::logDet(sub_mat_H + jaco.transpose() * jaco, true);
+                    //TODO(jxl): J^T*J分解，这块打分的依据是什么？ https://github.com/gogojjh/M-LOAM/issues/10
+
                     heap_subset.push(FeatureWithScore(que_idx, cur_det, jaco));
                     if (heap_subset.size() >= size_rnd_subset)
                     {
@@ -544,11 +548,11 @@ public:
                         break;
                     }
                 }
-                if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME)
+                if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME) //TODO(jxl): 作者为了实时性，可能会忽略某些point，实际运行时间得验证。
                     break;
             }
         } 
-        if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME)
+        if (num_rnd_que >= MAX_RANDOM_QUEUE_TIME || t_sel_feature.toc() > MAX_FEATURE_SELECT_TIME) //TODO(jxl): 作者为了实时性，可能会忽略某些point，实际运行时间得验证。
         {
             // std::cerr << "mapping [goodFeatureMatching]: early termination!" << std::endl;
             LOG_EVERY_N(INFO, 100) << "early termination: feature_type " << feature_type << ", " << num_rnd_que << ", " << t_sel_feature.toc();

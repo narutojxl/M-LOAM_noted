@@ -153,8 +153,8 @@ map_corner_res: 0.2
 map_surf_res: 0.4  #降采样voxel体素大小
 map_outlier_res: 0.8
 map_sur_kf_res: 1.0  #构成local map的keyframes降采样分辨率
-map_eig_thre: 100  #判断解退化时的阈值
-map_deg_thre: 42   #当前帧和local map匹配时: 对当前帧所有points打分后的阈值
+map_eig_thre: 100    #后端中curr frame和local map匹配后结果判断解是否退化时的阈值
+map_deg_thre: 42     #当前帧和local map匹配时: 对当前帧所有points打分后的阈值
 
 distance_keyframes: 1.0  #保存关键帧距离阈值，单位m
 orientation_keyframes: 1.0   #保存关键帧角度阈值, 单位度
@@ -176,7 +176,7 @@ uct_measurement: !!opencv-matrix
    rows: 1
    cols: 3
    dt: d
-   data: [0.0025, 0.0025, 0.0025]
+   data: [0.0025, 0.0025, 0.0025]  #当launch中“with_ua”为false时，表明点的cov(对角元素)
 
 uct_ext_ratio: 1.0 # small or other RHD: 0.1, little: 0.5, medium: 1, large: 15
 
