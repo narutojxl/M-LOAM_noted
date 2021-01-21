@@ -279,8 +279,8 @@ void Estimator::inputCloud(const double &t, const std::vector<PointCloud> &v_las
     }
 
     double mea_pre_time = mea_pre_timer.Stop();
-    // printf("meaPre time: %fms (%lu*%fms)\n", mea_pre_time * 1000, v_laser_cloud_in.size(), 
-    //                                          mea_pre_time * 1000 / v_laser_cloud_in.size());
+    printf("meaPre time: %fms (%lu*%fms)\n", mea_pre_time * 1000, v_laser_cloud_in.size(), 
+                                             mea_pre_time * 1000 / v_laser_cloud_in.size());
     m_buf_.lock();
     feature_buf_.push(make_pair(t, feature_frame)); //把每帧的features压入到队列中
     m_buf_.unlock();
@@ -338,8 +338,8 @@ void Estimator::inputCloud(const double &t, const std::vector<PointITimeCloud> &
     }
 
     double mea_pre_time = mea_pre_timer.Stop();
-    // printf("meaPre time: %fms (%lu*%fms)\n", mea_pre_time * 1000, v_laser_cloud_in.size(), 
-    //                                          mea_pre_time * 1000 / v_laser_cloud_in.size());
+    printf("meaPre time: %fms (%lu*%fms)\n", mea_pre_time * 1000, v_laser_cloud_in.size(), 
+                                             mea_pre_time * 1000 / v_laser_cloud_in.size());
 
     m_buf_.lock();
     feature_buf_.push(make_pair(t, feature_frame));
@@ -423,8 +423,8 @@ void Estimator::process()
     if (!b_system_inited_) //第一帧scan
     {
         b_system_inited_ = true;
-        // printf("System initialization finished \n");
-    } else 
+        printf("System initialization finished \n");
+    } else
     {
         common::timing::Timer tracker_timer("odom_tracker");
         // -----------------
@@ -441,9 +441,9 @@ void Estimator::process()
 
                 pose_laser_cur_[n] = pose_laser_cur_[n] * pose_rlt_[n];
             }
-            // printf("lidarTracker: %fms\n", tracker_timer.Stop() * 1000);
-            // for (size_t n = 0; n < NUM_OF_LASER; n++)
-            //     std::cout << "laser_" << n << ", pose_rlt: " << pose_rlt_[n] << std::endl;
+            printf("lidarTracker: %fms\n", tracker_timer.Stop() * 1000);
+            for (size_t n = 0; n < NUM_OF_LASER; n++)
+                std::cout << "laser_" << n << ", pose_rlt: " << pose_rlt_[n] << std::endl;
 
             // initialize extrinsics
             printf("calibrating extrinsic param, sufficient movement is needed\n");
@@ -551,8 +551,6 @@ void Estimator::process()
             break;
         }
     }
-
-    ROS_WARN("cir_buf_cnt_ = %d, Qs_.size()=%d", cir_buf_cnt_, Qs_.size());
 
     // pass cur_feature to prev_feature
     prev_time_ = cur_time_;
@@ -857,7 +855,6 @@ void Estimator::optimizeMap()
 
         CHECK_JACOBIAN = 0; //default: 0
         
-        ROS_WARN("TEST JACOBIAN");
         if (POINT_EDGE_FACTOR)
         {
             for (size_t n = 0; n < NUM_OF_LASER; n++)
@@ -889,8 +886,6 @@ void Estimator::optimizeMap()
                 }
             }
         }
-        ROS_WARN("TEST JACOBIAN DONE");
-
     }
     
     common::timing::Timer eval_deg_timer("odom_eval_residual");
@@ -1595,7 +1590,7 @@ void Estimator::goodFeatureMatching(const pcl::KdTreeFLANN<PointI>::Ptr &kdtree_
 void Estimator::slideWindow()
 {
     // TicToc t_solid_window;
-    // printf("size of sliding window: %lu\n", cir_buf_cnt_);
+    printf("size of sliding window: %lu\n", cir_buf_cnt_);
     Qs_.push(Qs_[cir_buf_cnt_]);
     Ts_.push(Ts_[cir_buf_cnt_]);
     Header_.push(Header_[cir_buf_cnt_]);
