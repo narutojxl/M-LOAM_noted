@@ -176,12 +176,12 @@ uct_measurement: !!opencv-matrix
    rows: 1
    cols: 3
    dt: d
-   data: [0.0025, 0.0025, 0.0025]  #当launch中“with_ua”为false时，表明点的cov(对角元素)
+   data: [0.0025, 0.0025, 0.0025]  #当launch中“with_ua”为true时，表明地图中的点(landmark)的cov(对角元素)
 
 uct_ext_ratio: 1.0 # small or other RHD: 0.1, little: 0.5, medium: 1, large: 15
 
 # RHD02: 10, RHD03: 10, RHD04: 10
-trace_threshold_mapping: 100 # min_d: 20   #点的covariance迹阈值，迹小于该阈值，则为一个好point
+trace_threshold_mapping: 100 # min_d: 20   #点转换到地图下covariance阈值。如果cov的迹小于该阈值，则才会加入到地图中。
 
 # 1. 10m: 1.25
 # 2. 20m: 7.8

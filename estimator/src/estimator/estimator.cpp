@@ -1113,7 +1113,7 @@ void Estimator::buildCalibMap()
 {
     common::timing::Timer build_map_timer("odom_build_calib_map");
     int pivot_idx = WINDOW_SIZE - OPT_WINDOW_SIZE;
-    Pose pose_pivot(Qs_[pivot_idx], Ts_[pivot_idx]); //pivot pose: Xv[0] //TODO(jxl): 好像跟作者论文中pivot的位置不一样
+    Pose pose_pivot(Qs_[pivot_idx], Ts_[pivot_idx]); //pivot pose: Xv[0]
     // build the whole local map using all poses except the newest pose
     surf_points_local_map_.clear();
     surf_points_local_map_.resize(NUM_OF_LASER);

@@ -71,7 +71,7 @@ PointICloud::Ptr global_map_keyframes_ds(new PointICloud());
 std::vector<int> surrounding_existing_keyframes_id; //当期帧周围的关键帧index
 std::vector<PointICovCloud::Ptr> surrounding_surf_cloud_keyframes; //当期帧周围的关键帧 surf points转换到map下，即local surf map
 std::vector<PointICovCloud::Ptr> surrounding_corner_cloud_keyframes; //当期帧周围的关键帧 corner points转换到map下，即local corner map
-std::vector<PointICovCloud::Ptr> surf_cloud_keyframes_cov;  //所有keyframes surf points
+std::vector<PointICovCloud::Ptr> surf_cloud_keyframes_cov;  //所有keyframes surf points, points在每个关键帧下
 std::vector<PointICovCloud::Ptr> corner_cloud_keyframes_cov;//所有keyframes corner points
 std::vector<PointICovCloud::Ptr> outlier_cloud_keyframes_cov;//所有keyframes outlier points
 
@@ -213,7 +213,7 @@ void laserOdometryHandler(const nav_msgs::Odometry::ConstPtr &laser_odom)
 	m_buf.unlock();
 
 	Eigen::Quaterniond q_wodom_curr;
-	Eigen::Vector3d t_wodom_curr; //TODO(jxl): 没有使用
+	Eigen::Vector3d t_wodom_curr; //没有使用
 	q_wodom_curr.x() = laser_odom->pose.pose.orientation.x;
 	q_wodom_curr.y() = laser_odom->pose.pose.orientation.y;
 	q_wodom_curr.z() = laser_odom->pose.pose.orientation.z;
@@ -263,7 +263,7 @@ void extractSurroundingKeyFrames()
         printf("not need to construct the map\n");
         return;
     }
-    //只有当上一帧是个keyframe，本次scan才会被处理提取特征；否则，直接return。
+    //只有当上一帧是个keyframe，才会重新build local map；否则，local map保持不变，直接return。
 
     // update the current point
     pose_point_cur.x = pose_wmap_curr.t_[0]; //当前帧在map下pose init值
@@ -385,7 +385,11 @@ void downsampleCurrentScan()
         if (with_ua_flag)//true
         {
             pointAssociateToMap(point_ori, point_sel, pose_ext[idx].inverse()); //point_sel: 在n雷达curr帧下
-            evalPointUncertainty(point_sel, cov_point, pose_ext[idx]); //TODO(jxl): 传播外参的cov到点的不确定性
+            evalPointUncertainty(point_sel, cov_point, pose_ext[idx]); 
+            //对于points中是在n雷达下观察到的points:
+            //把主雷达到n雷达的外参cov和每个点(landmark)测量的cov一起考虑进去，计算得到这些points的cov
+            //只有point的cov在阈值内才会被保留下来
+
             if (cov_point.trace() > TRACE_THRESHOLD_MAPPING) continue;
         }
         PointIWithCov point_cov(point_ori, cov_point.cast<float>());
@@ -644,7 +648,9 @@ void scan2MapOptimization()
         }
         std::cout << "optimization result: " << pose_wmap_curr << std::endl;
         pose_wmap_curr.cov_ = cov_mapping; //当前帧在map下的位姿 
-        //TODO(jxl): 直接使用ceres接口获取
+
+        //不用ceres接口来直接计算cov是因为，作者这的参数块(t, q)是用一个double raw pointer来表示，不像ceres example中是用两个double raw pointer来表示。
+        //http://ceres-solver.org/nnls_covariance.html
     }
     else
     {
@@ -678,7 +684,7 @@ void saveKeyframe()
     pose_3d.x = pose_wmap_curr.t_[0];
     pose_3d.y = pose_wmap_curr.t_[1];
     pose_3d.z = pose_wmap_curr.t_[2];
-    pose_3d.intensity = pose_keyframes_3d->size(); //keyframe index
+    pose_3d.intensity = pose_keyframes_3d->size(); //关键帧位姿的intensity: keyframe index
 
     pose_keyframes_3d->push_back(pose_3d);
     pose_keyframes_6d.push_back(std::make_pair(time_laser_odometry, pose_wmap_curr));
@@ -821,6 +827,7 @@ void pubGlobalMap()
 
             for (int i = 0; i < point_search_ind.size(); i++)
                 global_map_keyframes->points.push_back(pose_keyframes_3d->points[point_search_ind[i]]);
+
             down_size_filter_global_map_keyframes.setInputCloud(global_map_keyframes);
             down_size_filter_global_map_keyframes.filter(*global_map_keyframes_ds);
 
@@ -879,6 +886,7 @@ void saveGlobalMap()
     printf("global keyframes num: %lu\n", pose_keyframes_3d->size());
     for (size_t i = 0; i < pose_keyframes_3d->size(); i++)
         global_map_keyframes->points.push_back(pose_keyframes_3d->points[i]);
+
     down_size_filter_global_map_keyframes.setInputCloud(global_map_keyframes);
     down_size_filter_global_map_keyframes.filter(*global_map_keyframes_ds);
     for (int i = 0; i < global_map_keyframes_ds->size(); i++)
@@ -919,17 +927,17 @@ void saveGlobalMap()
     {
         pcd_writer.write("/tmp/mloam_mapping_surf_cloud.pcd", *laser_cloud_surf_map_ds);
         pcd_writer.write("/tmp/mloam_mapping_corner_cloud.pcd", *laser_cloud_corner_map_ds);
-        // *laser_cloud_map += *laser_cloud_surf_map_ds;
-        // *laser_cloud_map += *laser_cloud_corner_map_ds;
-        // pcd_writer.write("/tmp/mloam_mapping_cloud.pcd", *laser_cloud_map);
+        *laser_cloud_map += *laser_cloud_surf_map_ds;
+        *laser_cloud_map += *laser_cloud_corner_map_ds;
+        pcd_writer.write("/tmp/mloam_mapping_cloud.pcd", *laser_cloud_map);
     }
     else
     {
         pcd_writer.write("/tmp/mloam_mapping_surf_cloud_wo_ua.pcd", *laser_cloud_surf_map_ds);
         pcd_writer.write("/tmp/mloam_mapping_corner_cloud_wo_ua.pcd", *laser_cloud_corner_map_ds);
-        // *laser_cloud_map += *laser_cloud_surf_map_ds;
-        // *laser_cloud_map += *laser_cloud_corner_map_ds;
-        // pcd_writer.write("/tmp/mloam_mapping_cloud_wo_ua.pcd", *laser_cloud_map);
+        *laser_cloud_map += *laser_cloud_surf_map_ds;
+        *laser_cloud_map += *laser_cloud_corner_map_ds;
+        pcd_writer.write("/tmp/mloam_mapping_cloud_wo_ua.pcd", *laser_cloud_map);
     }
 }
 
@@ -1131,6 +1139,8 @@ void process()
 	}
 }
 
+//把点转换到map下，根据点的cov和点所在位姿的cov计算转换到map下后的cov
+//只有cov的迹满足一定要求才能加入到local map中, 为后面scan-local_map-match做准备
 void cloudUCTAssociateToMap(const PointICovCloud &cloud_local, //关键帧points
                             PointICovCloud &cloud_global, //[out]关键帧points转换到map下, 且计算cov
                             const Pose &pose_global,  //关键帧位姿
@@ -1140,7 +1150,7 @@ void cloudUCTAssociateToMap(const PointICovCloud &cloud_local, //关键帧points
     std::vector<Pose> pose_compound(NUM_OF_LASER);
     for (size_t n = 0; n < NUM_OF_LASER; n++) 
     {
-        compoundPoseWithCov(pose_global, pose_ext[n], pose_compound[n]); //关键帧n号雷达的位姿和cov  //TODO(jxl): cov的计算
+        compoundPoseWithCov(pose_global, pose_ext[n], pose_compound[n]); //pose_compound[n]：计算关键帧时刻n号雷达的位姿和cov
         // if (n == IDX_REF) continue;
         // std::cout << "pose global: " << pose_global << std::endl;
         // std::cout << pose_global.cov_ << std::endl;
@@ -1158,16 +1168,16 @@ void cloudUCTAssociateToMap(const PointICovCloud &cloud_local, //关键帧points
     size_t cloud_size = 0;
     for (const PointIWithCov &point_ori : cloud_local)
     {
-        int ind = (int)point_ori.intensity;
+        int ind = (int)point_ori.intensity; //雷达index, 见downsampleCurrentScan()
         PointIWithCov point_sel, point_cov;
         Eigen::Matrix3d cov_point = Eigen::Matrix3d::Zero();
         if (with_ua_flag) //true
         {
             pointAssociateToMap(point_ori, point_sel, pose_ext[ind].inverse()); //point_sel: 在n雷达下
-            evalPointUncertainty(point_sel, cov_point, pose_compound[ind]); //TODO(jxl): cov的计算
+            evalPointUncertainty(point_sel, cov_point, pose_compound[ind]); //根据点的cov和雷达位姿的cov，计算转到map下point的cov
             if (cov_point.trace() > TRACE_THRESHOLD_MAPPING) continue;
         }
-        pointAssociateToMap(point_ori, point_cov, pose_global);//关键帧在map下points
+        pointAssociateToMap(point_ori, point_cov, pose_global);//point_cov：关键帧在map下points
         updateCov(point_cov, cov_point); //把计算的cov赋给point_cov
         cloud_global[cloud_size] = point_cov;
         cloud_size++;
@@ -1287,8 +1297,8 @@ int main(int argc, char **argv)
 	pub_laser_cloud_full_res = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_registered", 5); //每一帧在map下points，包含了outliers(未聚类的points)
 	pub_laser_cloud_surf_last_res = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surf_registered", 5); //每一帧surf在map下points
 	pub_laser_cloud_corner_last_res = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_corner_registered", 5);//每一帧corner在map下points
-	pub_laser_cloud_surrounding = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surround", 5);
-	pub_laser_cloud_map = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_map", 5);
+	pub_laser_cloud_surrounding = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surround", 5); //local map
+	pub_laser_cloud_map = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_map", 5); //发布的是距离当前帧GLOBALMAP_KF_RADIUS以内的所有关键帧组成的map
     pub_good_surf_feature = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surf_good", 5);
 
 	pub_odom_aft_mapped = nh.advertise<nav_msgs::Odometry>("/laser_map", 5); // raw pose from odometry in the world   curr主雷达在map下位姿

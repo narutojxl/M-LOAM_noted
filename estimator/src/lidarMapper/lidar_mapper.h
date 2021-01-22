@@ -158,7 +158,7 @@ public:
         }
 
         double *rho = new double[3];
-        double sqr_error = res[0] * res[0] + res[1] * res[1] + res[0] * res[0]; //TODO(jxl): res[1]不存在
+        double sqr_error = res[0] * res[0] + res[1] * res[1] + res[0] * res[0]; //TODO(jxl): res[1]不存在， https://github.com/gogojjh/M-LOAM/issues/13
         loss_function_->Evaluate(sqr_error, rho);
 
         Eigen::Map<Eigen::Matrix<double, 1, 7, Eigen::RowMajor>> mat_jacobian(jaco[0]);
@@ -361,7 +361,7 @@ public:
             feature_visited[k] = 1;
             size_t cnt_visited = 1; //这个变量没什么用处
             PointIWithCov point_old = laser_cloud.points[k]; 
-            b_match = f_extract.matchSurfPointFromMap(kdtree_from_map, //TODO(jxl): 怎么没有区分feature type
+            b_match = f_extract.matchSurfPointFromMap(kdtree_from_map, //TODO(jxl): 怎么没有区分feature type， https://github.com/gogojjh/M-LOAM/issues/13
                                                       laser_map,
                                                       point_old,
                                                       pose_local,
@@ -372,7 +372,7 @@ public:
             if (b_match)
             {
                 sel_feature_idx[num_sel_features] = k;
-                num_sel_features++; //TODO(jxl): 在末尾也自加了，这要自加吗？
+                num_sel_features++;
             }            
 
             std::vector<float> dist(num_all_features, 1e5); // record the minimum distance of each point in set A to each point in set B
@@ -402,7 +402,7 @@ public:
                     best_d = d2 > best_d ? d2 : best_d;
                 }
                 que_idx = best_j;
-                point_old = laser_cloud.points[que_idx]; //old point不断在更新
+                point_old = laser_cloud.points[que_idx]; //注意：old point不断在更新
                 feature_visited[que_idx] = 1;
                 cnt_visited++;
 

@@ -23,7 +23,7 @@ inline Eigen::Matrix3d covop1(const Eigen::Matrix3d &B)
 
 inline Eigen::Matrix3d covop2(const Eigen::Matrix3d &B, const Eigen::Matrix3d &C)
 {
-    Eigen::Matrix3d A = covop1(B) * covop1(C) * covop1(C * B);
+    Eigen::Matrix3d A = covop1(B) * covop1(C) * covop1(C * B); //TODO(jxl): 根据 eq.45 应该是加号， https://github.com/gogojjh/M-LOAM/issues/13
     return A;
 }
 
@@ -86,6 +86,7 @@ inline void compoundPoseWithCov(const Pose &pose_1, const Eigen::Matrix<double, 
 
 // fixed: topLeftCorner<3, 3>()
 // dynamic: topLeftCorner(3, 3)
+//"paper: Associating Uncertainty With Three-Dimensional Poses for Use in Estimation Problems，barfoot2014"
 inline void compoundPoseWithCov(const Pose &pose_1,
                                 const Pose &pose_2,
                                 Pose &pose_cp,
@@ -94,12 +95,12 @@ inline void compoundPoseWithCov(const Pose &pose_1,
     const Eigen::Matrix<double, 6, 6> &cov_1 = pose_1.cov_;
     const Eigen::Matrix<double, 6, 6> &cov_2 = pose_2.cov_;
     pose_cp.q_ = pose_1.q_ * pose_2.q_;
-    pose_cp.t_ = pose_1.q_ * pose_2.t_ + pose_1.t_;
+    pose_cp.t_ = pose_1.q_ * pose_2.t_ + pose_1.t_; //eq.38
     pose_cp.update();
 
     Eigen::Matrix<double, 6, 6> AdT1 = adjointMatrix(pose_1.T_); // the adjoint matrix of T1
-    Eigen::Matrix<double, 6, 6> cov_2_prime = AdT1 * cov_2 * AdT1.transpose();
-    if (method == 1)
+    Eigen::Matrix<double, 6, 6> cov_2_prime = AdT1 * cov_2 * AdT1.transpose(); //equ.48
+    if (method == 1)//2阶cov
     {
         pose_cp.cov_ = cov_1 + cov_2_prime;
     }
@@ -107,18 +108,18 @@ inline void compoundPoseWithCov(const Pose &pose_1,
     {
         Eigen::Matrix3d cov_1_rr = cov_1.topLeftCorner<3, 3>();
         Eigen::Matrix3d cov_1_rp = cov_1.topRightCorner<3, 3>();
-        Eigen::Matrix3d cov_1_pp = cov_1.bottomRightCorner<3, 3>();
+        Eigen::Matrix3d cov_1_pp = cov_1.bottomRightCorner<3, 3>(); //equ.47
 
         Eigen::Matrix3d cov_2_rr = cov_2_prime.topLeftCorner<3, 3>();
         Eigen::Matrix3d cov_2_rp = cov_2_prime.topRightCorner<3, 3>();
-        Eigen::Matrix3d cov_2_pp = cov_2_prime.bottomRightCorner<3, 3>();
+        Eigen::Matrix3d cov_2_pp = cov_2_prime.bottomRightCorner<3, 3>(); //equ.48
 
-        Eigen::Matrix<double, 6, 6> A1 = Eigen::Matrix<double, 6, 6>::Zero();
-        A1.topLeftCorner<3, 3>() = covop1(cov_1_pp);
+        Eigen::Matrix<double, 6, 6> A1 = Eigen::Matrix<double, 6, 6>::Zero(); //eq.49
+        A1.topLeftCorner<3, 3>() = covop1(cov_1_pp); //eq.44
         A1.topRightCorner<3, 3>() = covop1(cov_1_rp + cov_1_rp.transpose());
-        A1.bottomRightCorner<3, 3>() = covop1(cov_1_pp);
+        A1.bottomRightCorner<3, 3>() = covop1(cov_1_pp); 
 
-        Eigen::Matrix<double, 6, 6> A2 = Eigen::Matrix<double, 6, 6>::Zero();
+        Eigen::Matrix<double, 6, 6> A2 = Eigen::Matrix<double, 6, 6>::Zero(); //eq.50
         A2.topLeftCorner<3, 3>() = covop1(cov_2_pp);
         A2.topRightCorner<3, 3>() = covop1(cov_2_rp + cov_2_rp.transpose());
         A2.bottomRightCorner<3, 3>() = covop1(cov_2_pp);
@@ -126,13 +127,13 @@ inline void compoundPoseWithCov(const Pose &pose_1,
         Eigen::Matrix3d Brr = covop2(cov_1_pp, cov_2_rr) + covop2(cov_1_rp.transpose(), cov_2_rp) + covop2(cov_1_rp, cov_2_rp.transpose()) + covop2(cov_1_rr, cov_2_pp);
         Eigen::Matrix3d Brp = covop2(cov_1_pp, cov_2_rp.transpose()) + covop2(cov_1_rp.transpose(), cov_2_pp);
         Eigen::Matrix3d Bpp = covop2(cov_1_pp, cov_2_pp);
-        Eigen::Matrix<double, 6, 6> B = Eigen::Matrix<double, 6, 6>::Zero();
+        Eigen::Matrix<double, 6, 6> B = Eigen::Matrix<double, 6, 6>::Zero(); //eq.51~54
         B.topLeftCorner<3, 3>() = Brr;
         B.topRightCorner<3, 3>() = Brp;
         B.bottomLeftCorner<3, 3>() = Brp.transpose();
         B.bottomRightCorner<3, 3>() = Bpp;
 
-        pose_cp.cov_ = cov_1 + cov_2_prime + (A1 * cov_2_prime + cov_2_prime * A1.transpose() + A2 * cov_1 + cov_1 * A2.transpose()) / 12 + B / 4;
+        pose_cp.cov_ = cov_1 + cov_2_prime + (A1 * cov_2_prime + cov_2_prime * A1.transpose() + A2 * cov_1 + cov_1 * A2.transpose()) / 12 + B / 4; //equ.55
     }
     else
     {
@@ -169,7 +170,7 @@ inline void evalPointUncertainty(const PointType &pi,
     // THETA: diag(P, Phi, Z) includes the translation, rotation, measurement uncertainty
     Eigen::Matrix<double, 9, 9> cov_input = Eigen::Matrix<double, 9, 9>::Zero();
     cov_input.topLeftCorner<6, 6>() = cov_pose;
-    cov_input.bottomRightCorner<3, 3>() = COV_MEASUREMENT;
+    cov_input.bottomRightCorner<3, 3>() = COV_MEASUREMENT; //位姿和点的联合cov, Σ
 
     Eigen::Vector4d point_curr(pi.x, pi.y, pi.z, 1);
     Eigen::Matrix4d T = pose.T_;
@@ -179,10 +180,14 @@ inline void evalPointUncertainty(const PointType &pi,
          0, 1, 0,
          0, 0, 1,
          0, 0, 0;
-    Eigen::Matrix<double, 4, 9> G = Eigen::Matrix<double, 4, 9>::Zero();
-    G.block<4, 6>(0, 0) = pointToFS(T * point_curr);
-    G.block<4, 3>(0, 6) = T * D;
-    cov_point = Eigen::Matrix4d(G * cov_input * G.transpose()).topLeftCorner<3, 3>(); // 3x3
+    Eigen::Matrix<double, 4, 9> G = Eigen::Matrix<double, 4, 9>::Zero(); //eq.82
+    G.block<4, 6>(0, 0) = pointToFS(T * point_curr); //eq.72, left
+    G.block<4, 3>(0, 6) = T * D; 
+    cov_point = Eigen::Matrix4d(G * cov_input * G.transpose()).topLeftCorner<3, 3>(); // 3x3  //eq.80，忽略高阶项
+    //Tp ≈ g + Gθ ~ N(T^bar * p^bar, G*Σ*G^T)
+    //g ~ N(T^bar * p^bar, 0)
+    //θ ~ N(0, Σ)
+
     // std::cout << cov_input << std::endl;
     // std::cout << G << std::endl;
     // std::cout << "evalUncertainty:" << std::endl
@@ -192,9 +197,9 @@ inline void evalPointUncertainty(const PointType &pi,
 }
 
 template <typename PointType>
-inline void evalPointUncertainty(const PointType &pi, //在n雷达curr帧下
+inline void evalPointUncertainty(const PointType &pi, 
                                  Eigen::Matrix3d &cov_point, //[out]
-                                 const Pose &pose) //主雷达到n雷达外参
+                                 const Pose &pose)
 {
     // THETA: diag(P, Phi, Z) includes the translation, rotation, measurement uncertainty
     Eigen::Matrix<double, 9, 9> cov_input = Eigen::Matrix<double, 9, 9>::Zero();
