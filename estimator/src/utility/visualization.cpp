@@ -177,7 +177,7 @@ void pubOdometry(Estimator &estimator, const double &time)
             laser_odom.pose.pose.position.y = pose_laser_cur.t_.y();
             laser_odom.pose.pose.position.z = pose_laser_cur.t_.z();
             v_pub_laser_odom[n].publish(laser_odom);
-            publishTF(laser_odom);
+            publishTF(laser_odom); 
 
             geometry_msgs::PoseStamped laser_pose;
             laser_pose.header = laser_odom.header;
@@ -224,7 +224,8 @@ void pubOdometry(Estimator &estimator, const double &time)
     extrinsics.header.frame_id = "/laser_" + std::to_string(IDX_REF);
     extrinsics.status = ESTIMATE_EXTRINSIC;
     for (size_t n = 0; n < NUM_OF_LASER; n++)
-    {
+    {   
+        // if(n == IDX_REF) continue; 
         nav_msgs::Odometry exts;
         exts.header.seq = n;
         exts.header.stamp = ros::Time(time);
@@ -240,7 +241,9 @@ void pubOdometry(Estimator &estimator, const double &time)
         for (size_t i = 0; i < 6; i++)
             for (size_t j = 0; j < 6; j++) 
                 exts.pose.covariance[i * 6 + j] = float(estimator.covbl_[n](i, j));
-        publishTF(exts);
+
+        if(n != IDX_REF) //jxl add: do not publish主雷达到主雷达的tf
+            publishTF(exts);
         extrinsics.odoms.push_back(exts);
     }
     pub_extrinsics.publish(extrinsics); //外参topic "/extrinsics" 

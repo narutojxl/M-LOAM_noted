@@ -14,11 +14,12 @@ segment_theta: 0.53 # Lego-loam: 1.0
 # laser parameters
 idx_ref: 0   #主雷达id
 n_scans: 16    #laser beams
-num_of_laser: 2
+num_of_laser: 1  #default
 
 cloud_topic:
-   - "/left/velodyne_points"
-   - "/right/velodyne_points"
+   #- "/left/velodyne_points"
+   #- "/right/velodyne_points"   
+   - "/velodyne_points"
 
 # window sizes
 window_size: 4
@@ -26,9 +27,8 @@ opt_window_size: 2
 
 
 ############################## For normal use
-# Extrinsic parameter between multiple LiDARs.
-#代码中当需要对外参提纯或者估计外参时，不对点云进行分割 
-estimate_extrinsic: 1   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
+# Extrinsic parameter between multiple LiDARs. 
+estimate_extrinsic: 0   # 0  Have an accurate extrinsic parameters. We will trust the following imu^R_cam, imu^T_cam, don't change it.
                         # 1  Have an initial guess about extrinsic parameters. We will optimize around your initial guess.
                         # 2  Have no prior about extrinsic parameters. We will initialize and optimize around them
 

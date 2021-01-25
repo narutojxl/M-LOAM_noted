@@ -76,7 +76,7 @@ std::vector<PointICovCloud::Ptr> corner_cloud_keyframes_cov;//所有keyframes co
 std::vector<PointICovCloud::Ptr> outlier_cloud_keyframes_cov;//所有keyframes outlier points
 
 // downsampling voxel grid
-pcl::VoxelGridCovarianceMLOAM<PointI> down_size_filter_surf;
+pcl::VoxelGridCovarianceMLOAM<PointI> down_size_filter_surf; //见mloam_pcl package
 pcl::VoxelGridCovarianceMLOAM<PointI> down_size_filter_corner;
 pcl::VoxelGridCovarianceMLOAM<PointI> down_size_filter_outlier;
 pcl::VoxelGridCovarianceMLOAM<PointI> down_size_filter_surrounding_keyframes;
